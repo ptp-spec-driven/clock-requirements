@@ -350,7 +350,7 @@ The following conditions govern transitions between states. Each condition is ev
 | **AllLocked**                 | All subsystems report LOCKED simultaneously: GNSS fix valid, GNSS offset within threshold, DPLL frequency and phase status both LOCKED, DPLL phase offset within in-spec threshold, PHC servo state s2, PHC offset within threshold | `inSyncConditionThreshold`, `inSyncConditionTimes` |
 | **HoldoverDataValid**         | DPLL is in HOLDOVER or LOCKED_HO_ACQ state — the OCXO has sufficient holdover data to maintain timing                                                                                                                               | —                                                  |
 | **Offset-Above-InSpecOffset** | Measured or estimated phase offset exceeds `MaxInSpecOffset`, or elapsed holdover time exceeds `LocalHoldoverTimeout`                                                                                                               | `MaxInSpecOffset`, `LocalHoldoverTimeout`          |
-| **Holdover-To-FreeRun**       | Holdover timeout expired or measured offset exceeds `LocalMaxHoldoverOffSet`                                                                                                                                                        | `LocalMaxHoldoverOffSet`                           |
+| **Holdover-To-FreeRun**       | Measured or estimated phase offset exceeds `LocalMaxHoldoverOffSet`                                                                                                                                                                 | `LocalMaxHoldoverOffSet`                           |
 | **NonGNSSFault**              | A non-GNSS-loss fault prevents time traceability (e.g., PHC synchroniser enters FREERUN while DPLL is LOCKED, or a process crash is detected)                                                                                       | —                                                  |
 
 ### 6.5 State Transition Table
@@ -512,7 +512,7 @@ The T-GM announces degraded holdover. Time is no longer traceable.
 | currentUtcOffsetValid                           | TRUE                                                         |
 | ptpTimescale                                    | TRUE                                                         |
 | timeTraceable                                   | **FALSE**                                                    |
-| frequencyTraceable                              | **FALSE**                                                    |
+| frequencyTraceable                              | **TRUE**                                                     |
 | currentUtcOffset                                | Current TAI−UTC offset                                       |
 | grandmasterPriority1                            | Configured priority1 (128 per G.8275.1)                      |
 | grandmasterClockQuality.clockClass              | **140**                                                      |
@@ -554,7 +554,7 @@ The T-GM announces degraded holdover. Time is no longer traceable.
 | clockAccuracy           | 0x21 (100 ns) | Unknown        | Unknown        | Unknown        |
 | offsetScaledLogVariance | 0x4E5D        | 0xFFFF         | 0xFFFF         | 0xFFFF         |
 | timeTraceable           | TRUE          | TRUE           | FALSE          | FALSE          |
-| frequencyTraceable      | TRUE          | TRUE           | FALSE          | FALSE          |
+| frequencyTraceable      | TRUE          | TRUE           | TRUE           | FALSE          |
 | timeSource              | GNSS (0x20)   | INT_OSC (0xA0) | INT_OSC (0xA0) | INT_OSC (0xA0) |
 | currentUtcOffsetValid   | TRUE          | TRUE           | TRUE           | TRUE           |
 
@@ -803,7 +803,7 @@ The following matrix defines which O-RAN O-Cloud Notification API v4.00 events m
 | Requirement ID | Traceability                          | Requirement text                                                                                                                                                                                          |
 | :------------- | :------------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | FUNC-TGM003-R1 | 6.4 Offset-Above-InSpecOffset, 6.5 T6 | Given a T-GM is in Holdover-In-Spec, when the measured phase offset exceeds `MaxInSpecOffset` or the holdover timer exceeds `LocalHoldoverTimeout`, then the T-GM must transition to Holdover-Out-Of-Spec |
-| FUNC-TGM003-R2 | 8.3 HO-Out-Of-Spec Announce           | Upon entering Holdover-Out-Of-Spec, Announce messages must reflect clockClass 140, timeTraceable FALSE                                                                                                    |
+| FUNC-TGM003-R2 | 8.3 HO-Out-Of-Spec Announce           | Upon entering Holdover-Out-Of-Spec, Announce messages must reflect clockClass 140, timeTraceable FALSE, frequencyTraceable TRUE                                                                           |
 
 ### 14.4 State Machine — Holdover to Free-Run
 
@@ -811,7 +811,7 @@ The following matrix defines which O-RAN O-Cloud Notification API v4.00 events m
 
 | Requirement ID | Traceability                       | Requirement text                                                                                                                                                            |
 | :------------- | :--------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FUNC-TGM004-R1 | 6.4 Holdover-To-FreeRun, 6.5 T7/T9 | Given a T-GM is in any Holdover state, when the holdover timeout expires or the measured offset exceeds `LocalMaxHoldoverOffSet`, then the T-GM must transition to Free-Run |
+| FUNC-TGM004-R1 | 6.4 Holdover-To-FreeRun, 6.5 T7/T9 | Given a T-GM is in any Holdover state, when the measured or estimated phase offset exceeds `LocalMaxHoldoverOffSet`, then the T-GM must transition to Free-Run |
 | FUNC-TGM004-R2 | 8.4 Free-Run Announce              | Upon entering Free-Run, Announce messages must reflect clockClass 248, clockAccuracy unknown (0xFE), timeTraceable FALSE, frequencyTraceable FALSE                          |
 
 ### 14.5 State Machine — Re-Lock from Degraded State
@@ -850,7 +850,7 @@ The following matrix defines which O-RAN O-Cloud Notification API v4.00 events m
 | :------------- | :----------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | FUNC-TGM008-R1 | 8.1 Locked         | Given a T-GM is in Locked state, then Announce messages must contain: clockClass=6, clockAccuracy=0x21, offsetScaledLogVariance=0x4E5D, timeSource=GNSS(0x20), timeTraceable=TRUE, frequencyTraceable=TRUE              |
 | FUNC-TGM008-R2 | 8.2 HO-In-Spec     | Given a T-GM is in Holdover-In-Spec state, then Announce messages must contain: clockClass=7, clockAccuracy=0xFE, offsetScaledLogVariance=0xFFFF, timeSource=INT_OSC(0xA0), timeTraceable=TRUE, frequencyTraceable=TRUE |
-| FUNC-TGM008-R3 | 8.3 HO-Out-Of-Spec | Given a T-GM is in Holdover-Out-Of-Spec state, then Announce messages must contain: clockClass=140, clockAccuracy=0xFE, timeTraceable=FALSE, frequencyTraceable=FALSE                                                   |
+| FUNC-TGM008-R3 | 8.3 HO-Out-Of-Spec | Given a T-GM is in Holdover-Out-Of-Spec state, then Announce messages must contain: clockClass=140, clockAccuracy=0xFE, timeTraceable=FALSE, frequencyTraceable=TRUE                                                    |
 | FUNC-TGM008-R4 | 8.4 Free-Run       | Given a T-GM is in Free-Run state, then Announce messages must contain: clockClass=248, clockAccuracy=0xFE, timeTraceable=FALSE, frequencyTraceable=FALSE                                                               |
 | FUNC-TGM008-R5 | 8.5                | Given a T-GM is in any state, then `currentUtcOffset` must contain the correct TAI−UTC offset and `currentUtcOffsetValid` must be TRUE                                                                                  |
 | FUNC-TGM008-R6 | 8.6                | Given a T-GM transitions between any two states, then Announce messages on all ports must reflect the new state within one Announce interval                                                                            |

@@ -60,6 +60,14 @@ is a bug or future backlog item.
 - 1PPS - One Pulse Per Second
 - NMEA - National Marine Electronics Association
 - ToD - Time of Day
+- TAI - International Atomic Time (Temps Atomique International)
+- UTC - Coordinated Universal Time
+- PRC - Primary Reference Clock
+- QL - Quality Level (SyncE)
+- DNU - Do Not Use (SyncE quality level)
+- RF - Radio Frequency
+- PHY - Physical Layer (Ethernet)
+- SMA - SubMiniature version A (coaxial connector)
 - cTE - Constant Time Error
 - dTE - Dynamic Time Error
 - maxTE - Maximum Time Error
@@ -72,7 +80,8 @@ is a bug or future backlog item.
 - ITU-T G.8272 — Timing characteristics of primary reference time clocks (PRTC-A, PRTC-B)
 - ITU-T G.8272.1 — Timing characteristics of enhanced primary reference time clocks (ePRTC)
 - ITU-T G.8273.2 — T-BC/T-TSC timing characteristics
-- ITU-T G.8275.1 — PTP telecom profile for phase/time (with full timing support)
+- ITU-T G.8275 — Framework and requirements for packet-based frequency, phase, and time distribution
+- ITU-T G.8275.1 — PTP telecom profile for phase/time synchronisation with full timing support from the network
 - ITU-T G.8262 — Timing characteristics of synchronous equipment clocks (EEC)
 - ITU-T G.8264 — Distribution of timing information through packet networks (ESMC / SyncE)
 - ITU-T G.811 — Timing characteristics of primary reference clocks
@@ -154,7 +163,7 @@ GNSS Constellation
 | :---------------- | :-------------------------------------------------------------------------------------------------------------- | :-------------------------- | :---------------------- |
 | **GNSS Receiver** | Receives RF signal from GNSS constellation; outputs 1PPS phase reference and ToD (NMEA/UBX)                     | DPLL via 1PPS & PHC via ToD | GNSS constellation      |
 | **DPLL**          | Digital PLL with OCXO. Locks to GNSS 1PPS in normal operation. Provides holdover stability when GNSS is lost    | PHC                         | GNSS 1PPS               |
-| **PHC**           | PTP Hardware Clock on the NIC. Disciplined by DPLL phase-locked output. Provides HW timestamps for PTP messages | ptp4l (via HW timestamps)   | GNSS ToD (via ts2phc)   |
+| **PHC**           | PTP Hardware Clock on the NIC. Frequency driven by the DPLL output; phase/ToD aligned by ts2phc comparing the GNSS 1PPS against the PHC output. Provides HW timestamps for PTP messages | ptp4l (time base for HW timestamps) | DPLL (frequency) and GNSS 1PPS + ToD (phase/time via ts2phc) |
 | **ptp4l**         | PTP protocol engine in grandmaster mode. Distributes Announce/Sync/Follow_Up on all master-only ports           | —                           | PHC (via HW timestamps) |
 | **phc2sys**       | Synchronises the OS system clock (`CLOCK_REALTIME`) to the PHC                                                  | System clock                | PHC                     |
 
@@ -237,6 +246,22 @@ When the GNSS reference is lost, the DPLL free-runs on its internal OCXO. Unlike
 - Downstream PTP nodes: consume Announce/Sync from master ports
 - Monitoring systems: subscribe to clock state events
 
+### 5.7 G.8275.1 Telecom Profile Parameters
+
+The T-GM operates under the ITU-T G.8275.1 telecom profile for phase/time synchronisation with full timing support from the network. Key profile constraints:
+
+| Parameter | G.8275.1 Value | Notes |
+| :--- | :--- | :--- |
+| domainNumber | 24–43 (default 24) | Per G.8275.1 Table 1 |
+| network transport | IEEE 802.3 (Layer 2 Ethernet multicast) | Mandatory; UDP/IP transport is not permitted |
+| delayMechanism | Peer-to-peer (P2P) | T-GM must respond to Pdelay_Req from directly connected peers with Pdelay_Resp |
+| logSyncInterval | −4 (16 per second) | Default per G.8275.1 Table 1 |
+| logAnnounceInterval | −3 (8 per second) | Default per G.8275.1 Table 1 |
+| logMinPdelayReqInterval | −4 (16 per second) | Default per G.8275.1 Table 1 |
+| announceReceiptTimeout | 3 | Number of announce intervals before timeout |
+| twoStepFlag | TRUE or FALSE | Both one-step and two-step operation are permitted by the profile |
+| BMCA | Alternate BMCA per G.8275.1 §6.3 | Uses priority1, clockClass, clockQuality, priority2 (differs from IEEE 1588 default BMCA) |
+
 ---
 
 ## 6. T-GM State Machine
@@ -285,6 +310,17 @@ The T-GM supports four clock states. State names and semantics are derived from 
 > its frequency from a GNSS source (which meets PRTC / PRC quality per
 > ITU-T G.8272). Deployments with lower-quality frequency references should
 > map to the appropriate clockClass per G.8275.1 Section 6.4.
+
+> **Note:** Setting `timeTraceable=TRUE` and `frequencyTraceable=TRUE` during
+> Holdover-In-Spec (clockClass 7) is an implementation choice. Strictly per
+> IEEE 1588-2019, `timeTraceable` indicates the timescale is traceable to a
+> primary reference — which is no longer the case once the GNSS reference is
+> lost. However, G.8275.1 clockClass 7 implies the clock was previously
+> traceable and is still operating within specification. Many telecom
+> deployments keep both flags TRUE during in-spec holdover to avoid
+> unnecessary downstream BMCA recalculations. This specification follows that
+> convention. Deployments with stricter traceability requirements may choose
+> to set both flags to FALSE upon entering any holdover state.
 
 ### 6.3 Composite State Evaluation
 
@@ -372,6 +408,8 @@ For practical application, where the stochastic component and initial frequency 
 
 ΔT(t) = S·t + ½·A·t²
 
+The initial time offset T₀ from the full model (§6.8.1) is omitted because the clock is assumed to be well-synchronised at the moment of entering holdover (i.e., T₀ ≈ 0). The initial frequency offset Δf/f is absorbed into the linear term S, which represents the worst-case drift rate specified by the oscillator manufacturer.
+
 The maximum values for ΔT and t are provided by the oscillator manufacturer as the maximum holdover time and the maximum offset accumulated during that time. S is the slope of the linear component (maximum offset drift rate). A is the oscillator ageing component, which becomes significant at longer holdover durations.
 
 This model is valid when clocks are sufficiently well synchronised so that the initial frequency offset falls within the bounds assumed by the manufacturer. When this syntonisation criterion is met, the system is considered **holdover-capable** at the source-lost event.
@@ -429,6 +467,14 @@ All PTP ports on the T-GM operate in the MASTER role. Announce messages are tran
 | stepsRemoved                                    | 0                                       |
 | timeSource                                      | **GNSS (0x20)**                         |
 | synchronizationUncertain                        | Not supported in this version           |
+
+> **Note:** The clockAccuracy value 0x21 (100 ns) is correct for both PRTC-A
+> (100 ns max |TE| per G.8272) and PRTC-B (40 ns max |TE| per G.8272).
+> Per IEEE 1588-2019 Table 3, clockAccuracy 0x21 means "accurate to within
+> 100 ns" and 0x20 means "accurate to within 25 ns". Since PRTC-B accuracy
+> of 40 ns does not meet the 0x20 threshold, 0x21 is the appropriate value
+> for both PRTC classes. The `stepsRemoved` value of 0 confirms the T-GM is
+> the grandmaster; downstream T-BCs increment this value.
 
 ### 8.2 Holdover-In-Spec State Announce Content
 
@@ -889,6 +935,7 @@ When in the LOCKED state, the T-GM must meet the time error limits of a Primary 
 | PERF-TGM003-R1 | G.8275.1     | The PTP engine must transmit Sync messages at the configured rate. Per G.8275.1, the default rate is 16 messages per second (logSyncInterval = −4) per port        |
 | PERF-TGM003-R2 | G.8275.1     | The PTP engine must transmit Announce messages at the configured rate. Per G.8275.1, the default rate is 8 messages per second (logAnnounceInterval = −3) per port |
 | PERF-TGM003-R3 | 10.1         | The PHC synchroniser must update its offset measurement at least once per second                                                                                   |
+| PERF-TGM003-R4 | G.8275.1, 5.7 | The PTP engine must respond to Pdelay_Req messages from directly connected peers per the peer-to-peer delay mechanism mandated by G.8275.1                       |
 
 ---
 
@@ -897,7 +944,8 @@ When in the LOCKED state, the T-GM must meet the time error limits of a Primary 
 - ITU-T G.8272 — Timing characteristics of primary reference time clocks (PRTC-A, PRTC-B)
 - ITU-T G.8272.1 — Timing characteristics of enhanced primary reference time clocks (ePRTC)
 - ITU-T G.8273.2 — T-BC/T-TSC timing characteristics
-- ITU-T G.8275.1 — PTP telecom profile for phase/time with full timing support
+- ITU-T G.8275 — Framework and requirements for packet-based frequency, phase, and time distribution
+- ITU-T G.8275.1 — PTP telecom profile for phase/time synchronisation with full timing support from the network
 - ITU-T G.8262 — Timing characteristics of synchronous equipment clocks (EEC)
 - ITU-T G.8264 — Distribution of timing via Ethernet networks (ESMC / SyncE)
 - ITU-T G.811 — Primary Reference Clock

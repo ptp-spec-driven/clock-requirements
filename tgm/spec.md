@@ -826,6 +826,7 @@ The user configures the behaviour and parameters of the GNSS receiver to adapt t
 | `todProtocol` | `NMEA` | Protocol for Time of Day serial communication (NMEA or UBX) |
 | `1ppsPulseWidth` | (Vendor-specific) | The duration of the 1PPS signal pulse width |
 | `surveyDuration` | `24` (hours) | Duration of the GNSS antenna survey |
+| `customCommands` | (None) | A user-supplied list of raw/custom commands to append during GNSS configuration |
 
 **GNSS Antenna Survey:**
 The system shall perform a GNSS antenna survey on every boot according to the user's choices. The initial survey allows the receiver to accurately determine its fixed 3D position by averaging errors over time. By default, this initial survey duration is 24 hours to ensure high-accuracy timing references. Once the survey completes, the receiver transitions into a timing-only fixed-position mode.

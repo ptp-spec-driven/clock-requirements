@@ -766,10 +766,90 @@ The following matrix defines which O-RAN O-Cloud Notification API v4.00 events m
 
 ---
 
-## 13. Security
+## 13. User Contract
+
+This section defines the behavioral contract between the system and its users: what information the system requires from the user (inputs), and what information the system provides back (outputs).
+
+### 13.1 User Inputs — Declaring Intent
+
+The user configures the system through two Kubernetes custom resources: the `PtpConfig` (PTP software configuration and clock behavior) and the `HardwareConfig` (clock chain hardware topology). The intent declaration spans three layers.
+
+#### 13.1.1 Clock Type and IEEE 1588 Profile
+
+The user declares the desired clock role and the IEEE 1588 PTP profile. The system derives process topology, startup order, announce behavior, and state machine semantics from this declaration.
+
+| Parameter | Values | Effect |
+| :--- | :--- | :--- |
+| `clockType` | `T-GM` | Determines the set of processes started, port roles (MASTER only), announce behavior, and which state machine specification applies |
+| `ptpProfile` | IEEE 1588 profile identifier | Determines transport, delay mechanism, BMCA variant, domain number range, and which PTP parameters are profile-mandated |
+
+When a profile is designated, certain PTP parameters are fixed by the profile and must not be overridden by the user. The system must reject invalid combinations at admission time with an informative error identifying the violating parameter.
+
+**Profile-Mandated Parameters (Tier 1) — G.8275.1:**
+
+| Parameter | Mandated value (G.8275.1) | Rationale |
+| :--- | :--- | :--- |
+| `network_transport` | `L2` | G.8275.1 requires Layer 2 multicast transport |
+| `delay_mechanism` | `E2E` | G.8275.1 requires end-to-end delay measurement |
+| `time_stamping` | `hardware` | Software timestamping is insufficient for PRTC accuracy |
+| `dataset_comparison` | `G.8275.x` | Required for G.8275.1 BMCA behavior |
+| `transportSpecific` | `0x0` | G.8275.1 uses the default PTP transport specific value |
+| `priority1` | `128` | G.8275.1 alternate BMCA ignores priority1; value must remain at 128 |
+| `clock_type` | `OC` or `BC` only | T-GM ports must be either ordinary or boundary clock ports |
+
+**T-GM Operator-Tunable Parameters (Tier 2):**
+
+| Parameter | Default | Range / values | Notes |
+| :--- | :--- | :--- | :--- |
+| `logAnnounceInterval` | `-3` (8/s) | `-4` to `0` | G.8275.1 recommends -3 |
+| `logSyncInterval` | `-4` (16/s) | `-7` to `-1` | |
+| `logMinDelayReqInterval` | `-4` | `-7` to `-1` | |
+| `domainNumber` | `24` | `24`–`43` | G.8275.1 reserves domain numbers 24–43 |
+| `priority2` | `128` | `0`–`255` | For multi-GM redundancy ordering |
+| `MaxInSpecOffset` | — | positive integer (ns) | Holdover in-spec / out-of-spec boundary |
+| `LocalMaxHoldoverOffSet` | — | positive integer (ns) | Holdover-to-freerun boundary |
+| `LocalHoldoverTimeout` | — | positive integer (s) | Maximum holdover duration |
+| `processDowntimeThresholds.*` | `5` | 0–86400 (s) | Acceptable process downtime before holdover/freerun events are emitted |
+
+**Additional Configuration Requirements:**
+- **GNSS configuration:** The operator shall expose parameters for serial port selection (auto-detected from NIC sysfs by default), ToD protocol (NMEA, UBX), 1PPS pulse width, and GNSS constellations to use (e.g., GPS, Galileo, GLONASS).
+- **Per-port role assignment:** Each NIC port shall be individually configurable as `masterOnly 1` (time transmitter) or `masterOnly 0` (time receiver).
+- **DPLL and SyncE parameters:** Reference input priorities and SyncE network option (ITU-T G.8264 Option 1 or Option 2) shall be configurable.
+
+#### 13.1.2 Hardware Configuration (Clock Chain)
+
+The user declares the hardware clock chain topology through the `HardwareConfig` custom resource. This resource describes the physical synchronization path: DPLL complexes, pins, connectors, phase/frequency inputs and outputs, delay compensations, and behavioral conditions for dynamic reconfiguration.
+
+The HardwareConfig is composed of two parts:
+
+| Part | Description |
+| :--- | :--- |
+| **Structure** | Static declaration of subsystems (GNSS receiver, DPLLs, Ethernet ports, pins, connectors), including phase/frequency inputs and outputs with delay compensation values. Each subsystem is associated with a hardware plugin |
+| **Behavior** | Declaration of synchronization sources, conditions (locked/lost), and the desired pin states for each condition. The system dynamically switches between condition-matched states based on source availability |
+
+When a `HardwareConfig` is provided, it takes precedence over plugin-derived hardware configuration for the associated PTP profile.
+
+### 13.2 System Outputs — What the System Provides
+
+The system provides synchronization state and health information through multiple channels. Each channel serves a different consumer and access pattern.
+
+| Output Channel | Content | Consumer | Reference |
+| :--- | :--- | :--- | :--- |
+| **Prometheus metrics** | Clock state, GNSS status, offsets, DPLL status, interface roles, process health, thresholds | Monitoring dashboards, alerting | §11.1 |
+| **CloudEvents / O-RAN notifications** | State transitions (GNSS, DPLL, PTP), clock class changes | Event-driven consumers, O-RAN O-Cloud | §12 |
+| **Kubernetes Events** | Clock state changes, process restarts on the PtpConfig resource | `kubectl describe`, cluster event sinks | §11.2.2 |
+| **PtpConfig.status** | Configuration errors (node, condition, diagnostic message) | Kubernetes controllers, operators | §11.2.1 |
+| **NodePtpDevice.status** | Discovered PTP devices, hardware info, per-device config status (failed/success) | Kubernetes controllers, hardware inventory | §11.2.2 |
+| **HardwareConfig.status** | Matched nodes, active behavior condition per node | Kubernetes controllers, clock chain verification | §11.2.3 |
+| **Structured logs** | State transitions, offset measurements, GNSS fix changes, hardware reconfiguration | Troubleshooting, audit trail | §11.3 |
+| **PTP Announce messages** | Clock class, clock accuracy, time properties, GM identity | Downstream PTP nodes | §8 |
+
+### 13.3 Security
 
 1. The system shall support PTP authentication (IEEE 1588 Annex P / NTS) when configured.
 2. When authentication key material changes, the system shall detect the change and restart affected processes to pick up the new keys.
+
+
 
 ---
 

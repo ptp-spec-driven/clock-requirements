@@ -844,7 +844,7 @@ The system provides synchronization state and health information through multipl
 | **Structured logs** | State transitions, offset measurements, GNSS fix changes, hardware reconfiguration | Troubleshooting, audit trail | §11.3 |
 | **PTP Announce messages** | Clock class, clock accuracy, time properties, GM identity | Downstream PTP nodes | §8 |
 
-### 13.3 Security
+## 14. Security
 
 1. The system shall support PTP authentication (IEEE 1588 Annex P / NTS) when configured.
 2. When authentication key material changes, the system shall detect the change and restart affected processes to pick up the new keys.
@@ -853,9 +853,9 @@ The system provides synchronization state and health information through multipl
 
 ---
 
-## 14. Functional Requirements Specification
+## 15. Functional Requirements Specification
 
-### 14.1 State Machine — Lock Acquisition
+### 15.1 State Machine — Lock Acquisition
 
 #### ID: FUNC-TGM001
 
@@ -864,7 +864,7 @@ The system provides synchronization state and health information through multipl
 | FUNC-TGM001-R1 | 6.4 AllLocked             | Given a T-GM is initialised in Free-Run state, when GNSS is acquired and all lock conditions are met (GNSS fix valid, DPLL locked, PHC servo s2, all offsets within threshold), then the T-GM must transition to Locked state |
 | FUNC-TGM001-R2 | 8.1 Locked State Announce | Upon entering Locked state, Announce messages on all ports must reflect clockClass 6, clockAccuracy 0x21, timeSource GNSS (0x20), timeTraceable TRUE                                                                          |
 
-### 14.2 State Machine — Holdover Entry on GNSS Loss
+### 15.2 State Machine — Holdover Entry on GNSS Loss
 
 #### ID: FUNC-TGM002
 
@@ -874,7 +874,7 @@ The system provides synchronization state and health information through multipl
 | FUNC-TGM002-R2 | 8.2 HO-In-Spec Announce | Upon entering Holdover-In-Spec, Announce messages must reflect clockClass 7, timeSource internal oscillator (0xA0), timeTraceable TRUE                                       |
 | FUNC-TGM002-R3 | 6.8.4                   | Upon entering holdover, the holdover timer must be started                                                                                                                   |
 
-### 14.3 State Machine — Holdover In-Spec to Out-Of-Spec
+### 15.3 State Machine — Holdover In-Spec to Out-Of-Spec
 
 #### ID: FUNC-TGM003
 
@@ -883,7 +883,7 @@ The system provides synchronization state and health information through multipl
 | FUNC-TGM003-R1 | 6.4 Offset-Above-InSpecOffset, 6.5 T6 | Given a T-GM is in Holdover-In-Spec, when the measured phase offset exceeds `MaxInSpecOffset` or the holdover timer exceeds `LocalHoldoverTimeout`, then the T-GM must transition to Holdover-Out-Of-Spec |
 | FUNC-TGM003-R2 | 8.3 HO-Out-Of-Spec Announce           | Upon entering Holdover-Out-Of-Spec, Announce messages must reflect clockClass 140, timeTraceable FALSE, frequencyTraceable TRUE                                                                           |
 
-### 14.4 State Machine — Holdover to Free-Run
+### 15.4 State Machine — Holdover to Free-Run
 
 #### ID: FUNC-TGM004
 
@@ -892,7 +892,7 @@ The system provides synchronization state and health information through multipl
 | FUNC-TGM004-R1 | 6.4 Holdover-To-FreeRun, 6.5 T7/T9 | Given a T-GM is in any Holdover state, when the measured or estimated phase offset exceeds `LocalMaxHoldoverOffSet`, then the T-GM must transition to Free-Run |
 | FUNC-TGM004-R2 | 8.4 Free-Run Announce              | Upon entering Free-Run, Announce messages must reflect clockClass 248, clockAccuracy unknown (0xFE), timeTraceable FALSE, frequencyTraceable FALSE                          |
 
-### 14.5 State Machine — Re-Lock from Degraded State
+### 15.5 State Machine — Re-Lock from Degraded State
 
 #### ID: FUNC-TGM005
 
@@ -901,7 +901,7 @@ The system provides synchronization state and health information through multipl
 | FUNC-TGM005-R1 | 6.4 AllLocked, 6.5 T5/T8  | Given a T-GM is in any Holdover or Free-Run state, when GNSS reference is re-acquired and all lock conditions are met per FUNC-TGM001-R1, then the T-GM must transition to Locked |
 | FUNC-TGM005-R2 | 8.1 Locked State Announce | Upon re-lock, Announce messages must be restored to Locked-state parameters (clockClass 6, timeSource GNSS)                                                                       |
 
-### 14.6 State Machine — Non-GNSS Fault to Free-Run
+### 15.6 State Machine — Non-GNSS Fault to Free-Run
 
 #### ID: FUNC-TGM006
 
@@ -909,7 +909,7 @@ The system provides synchronization state and health information through multipl
 | :------------- | :----------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | FUNC-TGM006-R1 | 6.4 NonGNSSFault, 6.5 T4 | Given a T-GM is in Locked state, when a non-GNSS-loss fault occurs that prevents time traceability (e.g., PHC synchroniser enters FREERUN while DPLL is LOCKED, or a process crash is detected), then the T-GM must transition to Free-Run |
 
-### 14.7 Initialisation — Clock Type and Initial State
+### 15.7 Initialisation — Clock Type and Initial State
 
 #### ID: FUNC-TGM007
 
@@ -920,7 +920,7 @@ The system provides synchronization state and health information through multipl
 | FUNC-TGM007-R3 | 6.6 step 4   | Given initialisation completes, then the system must enter the Free-Run state unconditionally, regardless of whether GNSS is already available                                            |
 | FUNC-TGM007-R4 | 6.5 T1       | Given a T-GM has just initialised, when GNSS is already available, then the system must NOT bypass Free-Run — it must progress through the full lock acquisition sequence to reach Locked |
 
-### 14.8 Per-State Announce Content Verification
+### 15.8 Per-State Announce Content Verification
 
 #### ID: FUNC-TGM008
 
@@ -933,7 +933,7 @@ The system provides synchronization state and health information through multipl
 | FUNC-TGM008-R5 | 8.5                | Given a T-GM is in any state, then `currentUtcOffset` must contain the correct TAI−UTC offset and `currentUtcOffsetValid` must be TRUE                                                                                  |
 | FUNC-TGM008-R6 | 8.6                | Given a T-GM transitions between any two states, then Announce messages on all ports must reflect the new state within one Announce interval                                                                            |
 
-### 14.9 Events — State Change Notification
+### 15.9 Events — State Change Notification
 
 #### ID: FUNC-TGM009
 
@@ -944,7 +944,7 @@ The system provides synchronization state and health information through multipl
 | FUNC-TGM009-R3 | 12.5 E2      | Given the T-GM clock class changes, then an `event.sync.ptp-status.ptp-clock-class-change` event must be published within 1 second                                                                                                   |
 | FUNC-TGM009-R4 | 12.5 E5      | Given the GNSS fix state changes, then an `event.sync.gnss-status.gnss-state-change` event must be published within 1 second                                                                                                         |
 
-### 14.10 Process Orchestration — Startup Order and Lifecycle
+### 15.10 Process Orchestration — Startup Order and Lifecycle
 
 #### ID: FUNC-TGM010
 
@@ -957,7 +957,7 @@ The system provides synchronization state and health information through multipl
 | FUNC-TGM010-R5 | 9.3          | Given a process exits unexpectedly, then it must be restarted automatically, and other healthy processes must NOT be stopped and restarted solely to re-establish ordering |
 | FUNC-TGM010-R6 | 9.3          | Given a configuration change occurs, then all processes must be stopped and restarted in the correct startup order                                                         |
 
-### 14.11 Process Failure — T-GM Behaviour
+### 15.11 Process Failure — T-GM Behaviour
 
 #### ID: FUNC-TGM011
 
@@ -969,7 +969,7 @@ The system provides synchronization state and health information through multipl
 | FUNC-TGM011-R4 | 9.5, phc2sys | Given phc2sys crashes and restarts within its threshold, then E3 (os-clock-sync-state-change) must NOT toggle LOCKED→FREERUN→LOCKED                     |
 | FUNC-TGM011-R5 | 9.3          | Given any timing process crashes, then it must be automatically restarted and `openshift_ptp_process_restart_count` must be incremented                 |
 
-### 14.12 Observability — Metrics Emission
+### 15.12 Observability — Metrics Emission
 
 #### ID: FUNC-TGM012
 
@@ -984,9 +984,9 @@ The system provides synchronization state and health information through multipl
 
 ---
 
-## 15. Performance Requirements Specification
+## 16. Performance Requirements Specification
 
-### 15.1 G.8272 PRTC Time Error
+### 16.1 G.8272 PRTC Time Error
 
 [**Source: Rec. ITU-T G.8272/Y.1367 (11/2018)**](https://www.itu.int/rec/T-REC-G.8272/en)
 
@@ -999,14 +999,14 @@ When in the LOCKED state, the T-GM must meet the time error limits of a Primary 
 | PERF-TGM001-R3                                                                                                                                                                        | G.8272, general            | The specific PRTC class supported (A or B) depends on the hardware platform. The system must be configurable to declare which PRTC class it meets |
 | NOTE. The locked-mode offset between the PHC and the GNSS 1PPS reference, as measured by the PHC synchroniser, must remain within the configured offset threshold (default: ±100 ns). |                            |                                                                                                                                                   |
 
-### 15.2 Holdover Performance
+### 16.2 Holdover Performance
 
 | Requirement ID | Traceability       | Requirement text                                                                                                                                                                                                                                                       |
 | :------------- | :----------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | PERF-TGM002-R1 | 6.8 Holdover Model | During holdover (in-spec), the clock must maintain time error within `MaxInSpecOffset` from the last known good reference                                                                                                                                              |
 | PERF-TGM002-R2 | 6.8 Holdover Model | The actual holdover performance (slope of time error drift) depends on the hardware oscillator quality. The system must expose sufficient observability (offset metrics, holdover duration) to allow operators to verify compliance with their deployment requirements |
 
-### 15.3 Timing Message Rates
+### 16.3 Timing Message Rates
 
 | Requirement ID | Traceability | Requirement text                                                                                                                                                   |
 | :------------- | :----------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1017,7 +1017,7 @@ When in the LOCKED state, the T-GM must meet the time error limits of a Primary 
 
 ---
 
-## 16. References
+## 17. References
 
 - ITU-T G.8272 — Timing characteristics of primary reference time clocks (PRTC-A, PRTC-B)
 - ITU-T G.8272.1 — Timing characteristics of enhanced primary reference time clocks (ePRTC)

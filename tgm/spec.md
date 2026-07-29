@@ -812,11 +812,25 @@ When a profile is designated, certain PTP parameters are fixed by the profile an
 | `processDowntimeThresholds.*` | `5` | 0–86400 (s) | Acceptable process downtime before holdover/freerun events are emitted |
 
 **Additional Configuration Requirements:**
-- **GNSS configuration:** The operator shall expose parameters for serial port selection (auto-detected from NIC sysfs by default), ToD protocol (NMEA, UBX), 1PPS pulse width, and GNSS constellations to use (e.g., GPS, Galileo, GLONASS).
 - **Per-port role assignment:** Each NIC port shall be individually configurable as `masterOnly 1` (time transmitter) or `masterOnly 0` (time receiver).
 - **DPLL and SyncE parameters:** Reference input priorities and SyncE network option (ITU-T G.8264 Option 1 or Option 2) shall be configurable.
 
-#### 13.1.2 Hardware Configuration (Clock Chain)
+#### 13.1.2 GNSS Configuration
+
+The user configures the behaviour and parameters of the GNSS receiver to adapt to their deployment environment and antenna placement.
+
+| Parameter | Default | Effect |
+| :--- | :--- | :--- |
+| `constellations` | (Vendor-specific) | Selects which GNSS constellations the receiver tracks (e.g., GPS, Galileo, GLONASS, BeiDou, QZSS) |
+| `serialPort` | (Auto-detected) | Serial device path (e.g., `/dev/gnss0`) for NMEA/UBX communication. Auto-detected from NIC sysfs when absent |
+| `todProtocol` | `NMEA` | Protocol for Time of Day serial communication (NMEA or UBX) |
+| `1ppsPulseWidth` | (Vendor-specific) | The duration of the 1PPS signal pulse width |
+| `surveyDuration` | `24` (hours) | Duration of the GNSS antenna survey |
+
+**GNSS Antenna Survey:**
+The system shall perform a GNSS antenna survey on every boot according to the user's choices. The initial survey allows the receiver to accurately determine its fixed 3D position by averaging errors over time. By default, this initial survey duration is 24 hours to ensure high-accuracy timing references. Once the survey completes, the receiver transitions into a timing-only fixed-position mode.
+
+#### 13.1.3 Hardware Configuration (Clock Chain)
 
 The user declares the hardware clock chain topology through the `HardwareConfig` custom resource. This resource describes the physical synchronization path: DPLL complexes, pins, connectors, phase/frequency inputs and outputs, delay compensations, and behavioral conditions for dynamic reconfiguration.
 

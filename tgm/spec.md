@@ -76,19 +76,20 @@ is a bug or future backlog item.
 
 ### 4.2 Normative References
 
-- IEEE 1588-2019 (PTP v2.1)
-- ITU-T G.8272 — Timing characteristics of primary reference time clocks (PRTC-A, PRTC-B)
-- ITU-T G.8272.1 — Timing characteristics of enhanced primary reference time clocks (ePRTC)
-- ITU-T G.8273.2 — T-BC/T-TSC timing characteristics
-- ITU-T G.8275 — Framework and requirements for packet-based frequency, phase, and time distribution
-- ITU-T G.8275.1 — PTP telecom profile for phase/time synchronisation with full timing support from the network
-- ITU-T G.8262 — Timing characteristics of synchronous equipment clocks (EEC)
-- ITU-T G.8264 — Distribution of timing information through packet networks (ESMC / SyncE)
-- ITU-T G.811 — Timing characteristics of primary reference clocks
+- [IEEE 1588-2008 (PTP v2)](https://standards.ieee.org/ieee/1588/4372/)
+- [ITU-T G.8272 (2018) — Timing characteristics of primary reference time clocks (PRTC-A, PRTC-B)](https://www.itu.int/rec/T-REC-G.8272)
+- [ITU-T G.8272.1 (2016) — Timing characteristics of enhanced primary reference time clocks (ePRTC)](https://www.itu.int/rec/T-REC-G.8272.1)
+- [ITU-T G.8273.2 (2020) — T-BC/T-TSC timing characteristics](https://www.itu.int/rec/T-REC-G.8273.2)
+- [ITU-T G.8275 (2020) — Framework and requirements for packet-based frequency, phase, and time distribution](https://www.itu.int/rec/T-REC-G.8275)
+- [ITU-T G.8275.1 (2022) — PTP telecom profile for phase/time synchronisation with full timing support from the network](https://www.itu.int/rec/T-REC-G.8275.1)
+- [ITU-T G.8262 (2018) — Timing characteristics of synchronous equipment clocks (EEC)](https://www.itu.int/rec/T-REC-G.8262)
+- [ITU-T G.8264 (2017) — Distribution of timing information through packet networks (ESMC / SyncE)](https://www.itu.int/rec/T-REC-G.8264)
+- [ITU-T G.811 (1997) — Timing characteristics of primary reference clocks](https://www.itu.int/rec/T-REC-G.811)
 
 ### 4.3 Informative References
 
 - O-RAN O-Cloud Notification API v2
+- [O-RAN.WG4.CUS.0-v11.00 — O-RAN Control, User and Synchronization Plane Specification](https://orandownloadsweb.azurewebsites.net/specifications)
 - CloudEvents v1.0 specification
 
 ---
@@ -97,7 +98,7 @@ is a bug or future backlog item.
 
 ### 5.1 Clock Types in Scope
 
-- T-GM (Telecom Grandmaster): acquires time from GNSS and distributes via PTP and optionally SyncE
+- T-GM (Telecom Grandmaster): acquires time and frequency from a PRTC, distributes time and frequency via PTP, and optionally distributes frequency via SyncE.
 
 For T-BC (Telecom Boundary Clock) requirements, see [T-BC spec](../tbc/spec.md).
 For T-TSC (Telecom Time Synchronous Clock) requirements, see [T-TSC spec](../ttsc/spec.md).
@@ -110,7 +111,7 @@ For T-TSC (Telecom Time Synchronous Clock) requirements, see [T-TSC spec](../tts
 
 ### 5.3 SyncE (Synchronous Ethernet) Role
 
-SyncE provides physical layer frequency distribution from the GNSS-locked oscillator. When configured:
+SyncE provides physical layer frequency distribution from the frequency-locked oscillator. When configured:
 
 - The DPLL drives frequency to the Ethernet PHY on all configured SyncE ports
 - The ESMC protocol advertises the appropriate quality level (QL) based on the current clock state:
@@ -120,15 +121,9 @@ SyncE provides physical layer frequency distribution from the GNSS-locked oscill
 - SyncE EEC lock state is reported through the observability interfaces
 - SyncE is **optional** — the T-GM distributes phase/time via PTP regardless of SyncE configuration
 
-### 5.4 Platform Context
+### 5.4 Signal Chain
 
-- Kubernetes-managed, operator-driven deployment
-- DaemonSet-based per-node daemon lifecycle
-- HTTP server for event subscription and metrics access
-
-### 5.5 Signal Chain
-
-The T-GM acquires time from a GNSS receiver, disciplines a local oscillator (DPLL with OCXO), and distributes phase/time to downstream PTP clients via the PHC.
+The T-GM acquires time, frequency and phase from a GNSS receiver acting as a built-in PRTC, disciplines a local clock chain (PHC and DPLL+OCXO complex), and distributes phase/time to downstream PTP clients via the PTP protocol.
 
 **Signal flow in Locked state (single-NIC):**
 
@@ -142,7 +137,7 @@ GNSS Constellation
 │ (1PPS + ToD) │  ToD (NMEA)     │
 └──────┬───────┘                 │
        │                         │
-       │ 1PPS                    │
+       │ 1PPS (phase/freq)       │
        ▼                         ▼
 ┌──────────┐    disciplines   ┌──────┐    HW timestamps  ┌──────────┐
 │   DPLL   │───────────────►  │ PHC  │───────────────►   │  ptp4l   │
@@ -162,8 +157,8 @@ GNSS Constellation
 | Component         | What it does                                                                                                    | Disciplines                 | Disciplined by          |
 | :---------------- | :-------------------------------------------------------------------------------------------------------------- | :-------------------------- | :---------------------- |
 | **GNSS Receiver** | Receives RF signal from GNSS constellation; outputs 1PPS phase reference and ToD (NMEA/UBX)                     | DPLL via 1PPS & PHC via ToD | GNSS constellation      |
-| **DPLL**          | Digital PLL with OCXO. Locks to GNSS 1PPS in normal operation. Provides holdover stability when GNSS is lost    | PHC                         | GNSS 1PPS               |
-| **PHC**           | PTP Hardware Clock on the NIC. Frequency driven by the DPLL output; phase/ToD aligned by ts2phc comparing the GNSS 1PPS against the PHC output. Provides HW timestamps for PTP messages | ptp4l (time base for HW timestamps) | DPLL (frequency) and GNSS 1PPS + ToD (phase/time via ts2phc) |
+| **DPLL**          | Digital PLL with OCXO. Locks to GNSS 1PPS in normal operation as a source of phase and frequency. Provides holdover stability when GNSS is lost    | PHC                         | GNSS 1PPS               |
+| **PHC**           | PTP Hardware Clock on the NIC. Frequency driven by the DPLL output; phase/ToD aligned by ts2phc comparing the GNSS 1PPS against the PHC output. Provides a source of HW timestamps for PTP messages | ptp4l (time base for HW timestamps) | DPLL (frequency) and GNSS 1PPS + ToD (phase/time via ts2phc) |
 | **ptp4l**         | PTP protocol engine in grandmaster mode. Distributes Announce/Sync/Follow_Up on all master-only ports           | —                           | PHC (via HW timestamps) |
 | **phc2sys**       | Synchronises the OS system clock (`CLOCK_REALTIME`) to the PHC                                                  | System clock                | PHC                     |
 
@@ -179,15 +174,15 @@ GNSS Constellation
 │ (1PPS + ToD) │    ToD (NMEA)     │
 └──────────────┘                   │
        │                           │
-       │ 1PPS                      │
+       │ 1PPS (phase/freq)         │
        ▼                           ▼
 ┌────────────┐    disciplines   ┌──────┐    HW timestamps  ┌──────────┐
 │ DPLL (Ldr) │───────────────►  │ PHC1 │───────────────►   │ ptp4l 1  │──┐
 │  (OCXO)    │                  │(Lead)│                   │ (master) │  │
 └────────────┘                  └──────┘                   └──────────┘  │
        │                           │                                     │
-       │ 1PPS out                  │ phc2sys                             ▼
-       │ (SMA cable)               ▼                                Downstream
+       │ physical signal           │ phc2sys                             ▼
+       │                           ▼                                Downstream
        │                    ┌────────────┐                          PTP clients
        │                    │  phc2sys   │
        │                    │ CLOCK_REAL │
@@ -220,7 +215,7 @@ When the GNSS reference is lost, the DPLL free-runs on its internal OCXO. Unlike
 │ (1PPS + ToD) │    ToD (NMEA)     │
 └──────────────┘                   │
        │                           │
-       X 1PPS                      X
+       X 1PPS (phase/freq)         X
 
 ┌──────────┐    disciplines   ┌──────┐    HW timestamps  ┌──────────┐
 │   DPLL   │───────────────►  │ PHC  │───────────────►   │  ptp4l   │
@@ -236,7 +231,7 @@ When the GNSS reference is lost, the DPLL free-runs on its internal OCXO. Unlike
                           └────────────┘
 ```
 
-- The DPLL's OCXO free-runs on its last locked frequency, providing holdover stability
+- The DPLL locks its numerically controlled frequency to the last known good tuning value, driven by the highly stable, free-running OCXO.
 - ptp4l continues distributing Sync/Announce to downstream, but with holdover clock class (7 or 140)
 - The holdover performance is bounded by the local OCXO drift model (see §6.8)
 
@@ -328,9 +323,9 @@ The T-GM clock state is derived from the combined states of three independent su
 
 | Subsystem        | Inputs                                                      | States reported           |
 | :--------------- | :---------------------------------------------------------- | :------------------------ |
-| GNSS monitor     | Satellite fix status, GNSS offset                           | LOCKED, FREERUN           |
-| DPLL             | DPLL frequency status, DPLL phase status, DPLL phase offset | LOCKED, HOLDOVER, FREERUN |
-| PHC synchroniser | PHC-to-reference offset, servo state                        | LOCKED, FREERUN           |
+| GNSS monitor     | Satellite 3D fix status, anti-spoofing state, GNSS offset, and time accuracy estimation (`tAcc`) | LOCKED, FREERUN           |
+| DPLL             | Frequency circuit state, phase circuit state, and DPLL phase offset | LOCKED (implies Holdover Acquired), HOLDOVER, FREERUN |
+| PHC synchroniser | PHC-to-reference offset against threshold, and `ts2phc` servo state | LOCKED, HOLDOVER, UNLOCKED |
 
 **Composite state evaluation rules:**
 
@@ -771,7 +766,10 @@ The following matrix defines which O-RAN O-Cloud Notification API v4.00 events m
 
 ---
 
-## 13. void
+## 13. Security
+
+1. The system shall support PTP authentication (IEEE 1588 Annex P / NTS) when configured.
+2. When authentication key material changes, the system shall detect the change and restart affected processes to pick up the new keys.
 
 ---
 

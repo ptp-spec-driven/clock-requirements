@@ -888,6 +888,7 @@ The system provides synchronization state and health information through multipl
 | FUNC-TGM002-R1 | 6.4 GNSSLost, 6.5 T3    | Given a T-GM is in Locked state, when the GNSS reference is lost and the DPLL enters holdover or locked-holdover-acquired, then the T-GM must transition to Holdover-In-Spec |
 | FUNC-TGM002-R2 | 8.2 HO-In-Spec Announce | Upon entering Holdover-In-Spec, Announce messages must reflect clockClass 7, timeSource internal oscillator (0xA0), timeTraceable TRUE                                       |
 | FUNC-TGM002-R3 | 6.8.4                   | Upon entering holdover, the holdover timer must be started                                                                                                                   |
+| FUNC-TGM002-R4 | 7            | Given a T-GM enters Holdover, it must maintain a unidirectional signal flow without reversing the synchronisation direction |
 
 ### 15.3 State Machine — Holdover In-Spec to Out-Of-Spec
 
@@ -934,6 +935,7 @@ The system provides synchronization state and health information through multipl
 | FUNC-TGM007-R2 | 6.6 step 2   | Given the clock type is determined, then processes must be started in the required startup order with generated configurations                                                            |
 | FUNC-TGM007-R3 | 6.6 step 4   | Given initialisation completes, then the system must enter the Free-Run state unconditionally, regardless of whether GNSS is already available                                            |
 | FUNC-TGM007-R4 | 6.5 T1       | Given a T-GM has just initialised, when GNSS is already available, then the system must NOT bypass Free-Run — it must progress through the full lock acquisition sequence to reach Locked |
+| FUNC-TGM007-R5 | 13.1.1       | Given a telecom profile is designated, the system must validate that the user configuration conforms to profile-mandated parameter constraints and reject it at admission time if a violation is found |
 
 
 ### 15.8 GNSS Initialisation and Configuration
@@ -970,6 +972,7 @@ The system provides synchronization state and health information through multipl
 | FUNC-TGM010-R2 | 12.2         | The event must contain the new state, previous state, and relevant metric values                                                                                                                                                     |
 | FUNC-TGM010-R3 | 12.5 E2      | Given the T-GM clock class changes, then an `event.sync.ptp-status.ptp-clock-class-change` event must be published within 1 second                                                                                                   |
 | FUNC-TGM010-R4 | 12.5 E5      | Given the GNSS fix state changes, then an `event.sync.gnss-status.gnss-state-change` event must be published within 1 second                                                                                                         |
+| FUNC-TGM010-R5 | 12.2         | Given the T-GM is in a stable state, then state change events must not be published periodically, but only edge-triggered upon actual state or value transition |
 
 ### 15.11 Process Orchestration — Startup Order and Lifecycle
 
@@ -1011,6 +1014,25 @@ The system provides synchronization state and health information through multipl
 
 ---
 
+
+### 15.14 SyncE (Synchronous Ethernet) Distribution
+
+#### ID: FUNC-TGM014
+
+| Requirement ID | Traceability | Requirement text                                                                                                                                                             |
+| :------------- | :----------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FUNC-TGM014-R1 | 5.3          | Given SyncE is configured, the T-GM must distribute frequency from the frequency-locked oscillator to the Ethernet PHY on all configured SyncE ports                           |
+| FUNC-TGM014-R2 | 5.3          | Given SyncE is configured, the ESMC protocol must advertise QL-PRC (or equivalent) when the T-GM is LOCKED, a degraded QL when in HOLDOVER, and QL-DNU when in FREERUN         |
+| FUNC-TGM014-R3 | 12.5         | Given SyncE is configured, when the SyncE clock quality or state changes, the system must publish `event.sync.synce-status.*` events within 1 second                         |
+
+### 15.15 Security and Authentication
+
+#### ID: FUNC-TGM015
+
+| Requirement ID | Traceability | Requirement text                                                                                                                                                             |
+| :------------- | :----------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FUNC-TGM015-R1 | 14           | Given PTP authentication (IEEE 1588 Annex P / NTS) is configured, the system must append authentication TLVs to transmitted PTP messages and validate incoming messages      |
+| FUNC-TGM015-R2 | 14           | Given authentication key material is updated, the system must detect the change and restart affected processes without requiring a full pod restart                          |
 ## 16. Performance Requirements Specification
 
 ### 16.1 G.8272 PRTC Time Error

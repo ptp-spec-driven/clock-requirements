@@ -836,6 +836,8 @@ The user configures the behaviour and parameters of the GNSS receiver to adapt t
 **GNSS Antenna Survey:**
 The system shall perform a GNSS antenna survey according to the user's choices. The initial survey allows the receiver to accurately determine its fixed 3D position by averaging errors over time. By default, this initial survey duration is 24 hours to ensure high-accuracy timing references. Once the survey completes, the receiver transitions into a timing-only fixed-position mode. The GNSS survey position should be saved into the receiver to avoid the need to conduct a survey on every receiver start.
 
+Following transition into fixed-position mode, the system shall monitor for position drift. If the drift exceeds the initial surveyMinAccuracy, the survey procedure shall be restarted to reestablish a fixed position.
+
 #### 13.1.3 Hardware Configuration (Clock Chain)
 
 The user declares the hardware clock chain topology through the `HardwareConfig` custom resource. This resource describes the physical synchronization path: DPLL complexes, pins, connectors, phase/frequency inputs and outputs, delay compensations, and behavioral conditions for dynamic reconfiguration.
@@ -868,6 +870,7 @@ The system provides synchronization state and health information through multipl
 
 1. The system shall support PTP authentication (IEEE 1588 Annex P / NTS) when configured.
 2. When authentication key material changes, the system shall detect the change and restart affected processes to pick up the new keys.
+3. When GNSS spoofing or jamming is detected by the GNSS hardware, the system shall enter FREERUN.
 
 ---
 
@@ -1035,7 +1038,17 @@ The system provides synchronization state and health information through multipl
 | :------------- | :----------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | FUNC-TGM015-R1 | 14           | Given PTP authentication (IEEE 1588 Annex P / NTS) is configured, the system must append authentication TLVs to transmitted PTP messages and validate incoming messages |
 | FUNC-TGM015-R2 | 14           | Given authentication key material is updated, the system must detect the change and restart affected processes without requiring a full pod restart                     |
+| FUNC-TGM015-R3 | 14           | Given the GNSS hardware detects spoofing or jamming, the system must immediately force the clock state manager to evaluate GNSS as FREERUN |
 
+
+### 15.16 Drift Monitoring and Re-Survey
+
+#### ID: FUNC-TGM016
+
+| Requirement ID | Traceability | Requirement text                                                                                                                                                             |
+| :------------- | :----------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FUNC-TGM016-R1 | 13.1.2       | Given the GNSS receiver has transitioned into fixed-position mode, the system must monitor for position drift                                                                |
+| FUNC-TGM016-R2 | 13.1.2       | Given position drift exceeds the configured `surveyMinAccuracy`, the system must restart the GNSS antenna survey procedure to reestablish a new fixed 3D position            |
 ## 16. Performance Requirements Specification
 
 ### 16.1 G.8272 PRTC Time Error

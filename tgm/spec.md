@@ -42,37 +42,37 @@ is a bug or future backlog item.
 
 ### 4.1 Abbreviations and Acronyms
 
-- FFS - For Further Study
-- T-GM - Telecom Grandmaster
-- T-BC - Telecom Boundary Clock
-- T-TSC - Telecom Time Synchronous Clock
-- PRTC - Primary Reference Time Clock
+- 1PPS - One Pulse Per Second
+- BMCA - Best Master Clock Algorithm
+- cTE - Constant Time Error
+- DNU - Do Not Use (SyncE quality level)
 - DPLL - Digital Phase-Locked Loop
-- SyncE - Synchronous Ethernet
+- dTE - Dynamic Time Error
 - EEC - Ethernet Equipment Clock
 - ESMC - Ethernet Synchronisation Messaging Channel
-- PHC - PTP Hardware Clock
-- PMC - PTP Management Client
-- BMCA - Best Master Clock Algorithm
-- NIC - Network Interface Card
-- OCXO - Oven-Controlled Crystal Oscillator
+- FFS - For Further Study
 - GNSS - Global Navigation Satellite System
-- 1PPS - One Pulse Per Second
-- NMEA - National Marine Electronics Association
-- ToD - Time of Day
-- TAI - International Atomic Time (Temps Atomique International)
-- UTC - Coordinated Universal Time
-- PRC - Primary Reference Clock
-- QL - Quality Level (SyncE)
-- DNU - Do Not Use (SyncE quality level)
-- RF - Radio Frequency
-- PHY - Physical Layer (Ethernet)
-- SMA - SubMiniature version A (coaxial connector)
-- cTE - Constant Time Error
-- dTE - Dynamic Time Error
 - maxTE - Maximum Time Error
 - MTIE - Maximum Time Interval Error
+- NIC - Network Interface Card
+- NMEA - National Marine Electronics Association
+- OCXO - Oven-Controlled Crystal Oscillator
+- PHC - PTP Hardware Clock
+- PHY - Physical Layer (Ethernet)
+- PMC - PTP Management Client
+- PRC - Primary Reference Clock
+- PRTC - Primary Reference Time Clock
+- QL - Quality Level (SyncE)
+- RF - Radio Frequency
+- SMA - SubMiniature version A (coaxial connector)
+- SyncE - Synchronous Ethernet
+- T-BC - Telecom Boundary Clock
+- T-GM - Telecom Grandmaster
+- T-TSC - Telecom Time Synchronous Clock
+- TAI - International Atomic Time (Temps Atomique International)
 - TDEV - Time Deviation
+- ToD - Time of Day
+- UTC - Coordinated Universal Time
 
 ### 4.2 Normative References
 
@@ -317,6 +317,8 @@ The T-GM supports four clock states. State names and semantics are derived from 
 > convention. Deployments with stricter traceability requirements may choose
 > to set both flags to FALSE upon entering any holdover state.
 
+> SyncE additional states and behaviors depending on the overall clock state, but these are not yet defined in this document.
+
 ### 6.3 Composite State Evaluation
 
 The T-GM clock state is derived from the combined states of three independent subsystems. The composite state is the _lowest-quality_ (most degraded) state among the active subsystems.
@@ -429,7 +431,7 @@ The holdover duration may be derived from the oscillator model (where the hardwa
 
 ## 7. Synchronisation Direction
 
-Unlike the T-BC (which reverses synchronisation direction between Locked and Holdover states), the T-GM maintains a **unidirectional** signal flow at all times: GNSS → DPLL → PHC → ptp4l.
+Unlike the T-BC (which reverses synchronisation direction between Locked and Holdover states), the T-GM maintains a **unidirectional** signal flow at all times: GNSS → DPLL → PHC → PTP protocol unit.
 
 In Holdover, the GNSS input is lost but the DPLL continues to discipline the PHC from its free-running OCXO. No pin reconfiguration or direction reversal is required. The DPLL transitions from LOCKED to HOLDOVER/LOCKED_HO_ACQ internally.
 
@@ -469,7 +471,9 @@ All PTP ports on the T-GM operate in the MASTER role. Announce messages are tran
 > 100 ns" and 0x20 means "accurate to within 25 ns". Since PRTC-B accuracy
 > of 40 ns does not meet the 0x20 threshold, 0x21 is the appropriate value
 > for both PRTC classes. The `stepsRemoved` value of 0 confirms the T-GM is
-> the grandmaster; downstream T-BCs increment this value.
+> the grandmaster; downstream T-BCs increment this value. FFS: the clock class
+> could be configurable or auto-configured if the internal accuracy warrants a
+> better accuracy declaration.
 
 ### 8.2 Holdover-In-Spec State Announce Content
 
@@ -564,6 +568,8 @@ The required clockClass values and their corresponding accuracies are derived di
 
 ## 9. Process Orchestration
 
+> Note: This is informational, and may be more in the realm of implementation notes than external requirements.
+
 ### 9.1 Process Inventory and Roles
 
 | Process      | Role                                                                                        | Instances per T-GM |
@@ -632,6 +638,8 @@ If the process restarts within its configured threshold, state-change events are
 - Satellite fix status (3D fix = valid, < 3 = invalid)
 - GNSS clock offset vs configured threshold
 - Source loss detection (fix status < 3 or NMEA data loss) — propagated to clock state manager within 1 second
+- Source spoofing detection (hardware dependent)
+- Source jamming detection (hardware dependent)
 
 ### 10.3 DPLL Status Monitoring
 
@@ -1038,17 +1046,17 @@ The system provides synchronization state and health information through multipl
 | :------------- | :----------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | FUNC-TGM015-R1 | 14           | Given PTP authentication (IEEE 1588 Annex P / NTS) is configured, the system must append authentication TLVs to transmitted PTP messages and validate incoming messages |
 | FUNC-TGM015-R2 | 14           | Given authentication key material is updated, the system must detect the change and restart affected processes without requiring a full pod restart                     |
-| FUNC-TGM015-R3 | 14           | Given the GNSS hardware detects spoofing or jamming, the system must immediately force the clock state manager to evaluate GNSS as FREERUN |
-
+| FUNC-TGM015-R3 | 14           | Given the GNSS hardware detects spoofing or jamming, the system must immediately force the clock state manager to evaluate GNSS as FREERUN                              |
 
 ### 15.16 Drift Monitoring and Re-Survey
 
 #### ID: FUNC-TGM016
 
-| Requirement ID | Traceability | Requirement text                                                                                                                                                             |
-| :------------- | :----------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FUNC-TGM016-R1 | 13.1.2       | Given the GNSS receiver has transitioned into fixed-position mode, the system must monitor for position drift                                                                |
-| FUNC-TGM016-R2 | 13.1.2       | Given position drift exceeds the configured `surveyMinAccuracy`, the system must restart the GNSS antenna survey procedure to reestablish a new fixed 3D position            |
+| Requirement ID | Traceability | Requirement text                                                                                                                                                  |
+| :------------- | :----------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FUNC-TGM016-R1 | 13.1.2       | Given the GNSS receiver has transitioned into fixed-position mode, the system must monitor for position drift                                                     |
+| FUNC-TGM016-R2 | 13.1.2       | Given position drift exceeds the configured `surveyMinAccuracy`, the system must restart the GNSS antenna survey procedure to reestablish a new fixed 3D position |
+
 ## 16. Performance Requirements Specification
 
 ### 16.1 G.8272 PRTC Time Error

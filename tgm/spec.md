@@ -43,7 +43,7 @@ is a bug or future backlog item.
 ### 4.1 Abbreviations and Acronyms
 
 - 1PPS - One Pulse Per Second
-- BMCA - Best Master Clock Algorithm
+- BTCA - Best TimeTransmitter Clock Algorithm
 - cTE - Constant Time Error
 - DNU - Do Not Use (SyncE quality level)
 - DPLL - Digital Phase-Locked Loop
@@ -250,15 +250,13 @@ The T-GM operates under the [ITU-T G.8275.1](https://www.itu.int/rec/t-rec-g.827
 
 | Parameter               | [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Value                          | Notes                                                                                     |
 | :---------------------- | :-------------------------------------- | :---------------------------------------------------------------------------------------- |
-| domainNumber            | 24–43 (default 24)                      | Per [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Table 1                                                                      |
+| domainNumber            | 24–43 (default 24)                      | Per [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Table A.1                                                                      |
 | network transport       | IEEE 802.3 (Layer 2 Ethernet multicast) | Mandatory; UDP/IP transport is not permitted                                              |
 | delayMechanism          | Peer-to-peer (P2P)                      | T-GM must respond to Pdelay_Req from directly connected peers with Pdelay_Resp            |
-| logSyncInterval         | −4 (16 per second)                      | Default per [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Table 1                                                              |
-| logAnnounceInterval     | −3 (8 per second)                       | Default per [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Table 1                                                              |
-| logMinPdelayReqInterval | −4 (16 per second)                      | Default per [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Table 1                                                              |
+| logSyncInterval         | −4 (16 per second)                      | Default per [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Table A.5                                                               |
+| logAnnounceInterval     | −3 (8 per second)                       | Default per [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Table A.5                                                              |
 | announceReceiptTimeout  | 3                                       | Number of announce intervals before timeout                                               |
 | twoStepFlag             | TRUE or FALSE                           | Both one-step and two-step operation are permitted by the profile                         |
-| BMCA                    | Alternate BMCA per [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) §6.3        | Uses priority1, clockClass, clockQuality, priority2 (differs from IEEE 1588 default BMCA) |
 
 ---
 
@@ -316,7 +314,7 @@ The T-GM supports four clock states. State names and semantics are derived from 
 > lost. However, [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) clockClass 7 implies the clock was previously
 > traceable and is still operating within specification. Many telecom
 > deployments keep both flags TRUE during in-spec holdover to avoid
-> unnecessary downstream BMCA recalculations. This specification follows that
+> unnecessary downstream BTCA recalculations. This specification follows that
 > convention. Deployments with stricter traceability requirements may choose
 > to set both flags to FALSE upon entering any holdover state.
 
@@ -796,7 +794,7 @@ The user declares the desired clock role and the IEEE 1588 PTP profile. The syst
 | Parameter    | Values                       | Effect                                                                                                                              |
 | :----------- | :--------------------------- | :---------------------------------------------------------------------------------------------------------------------------------- |
 | `clockType`  | `T-GM`                       | Determines the set of processes started, port roles (MASTER only), announce behavior, and which state machine specification applies |
-| `ptpProfile` | IEEE 1588 profile identifier | Determines transport, delay mechanism, BMCA variant, domain number range, and which PTP parameters are profile-mandated             |
+| `ptpProfile` | IEEE 1588 profile identifier | Determines transport, delay mechanism, BTCA variant, domain number range, and which PTP parameters are profile-mandated             |
 
 When a profile is designated, certain PTP parameters are fixed by the profile and must not be overridden by the user. The system must reject invalid combinations at admission time with an informative error identifying the violating parameter.
 
@@ -807,9 +805,9 @@ When a profile is designated, certain PTP parameters are fixed by the profile an
 | `network_transport`  | `L2`                      | [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) requires Layer 2 multicast transport                       |
 | `delay_mechanism`    | `E2E`                     | [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) requires end-to-end delay measurement                      |
 | `time_stamping`      | `hardware`                | Software timestamping is insufficient for PRTC accuracy             |
-| `dataset_comparison` | `[G.8275](https://www.itu.int/rec/t-rec-g.8275/en).x`                | Required for [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) BMCA behavior                                 |
+| `dataset_comparison` | `[G.8275](https://www.itu.int/rec/t-rec-g.8275/en).x`                | Required for [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) BTCA behavior                                 |
 | `transportSpecific`  | `0x0`                     | [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) uses the default PTP transport specific value              |
-| `priority1`          | `128`                     | [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) alternate BMCA ignores priority1; value must remain at 128 |
+| `priority1`          | `128`                     | [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) alternate BTCA ignores priority1; value must remain at 128 |
 | `clock_type`         | `OC` or `BC` only         | T-GM ports must be either ordinary or boundary clock ports          |
 
 **T-GM Operator-Tunable Parameters (Tier 2):**

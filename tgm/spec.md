@@ -131,7 +131,7 @@ GNSS Constellation
        │
        │ RF signal
        ▼
-┌──────────────┐     ts2phc
+┌──────────────┐
 │ GNSS Receiver│─────────────────┐
 │ (1PPS + ToD) │  ToD (NMEA)     │
 └──────┬───────┘                 │
@@ -139,15 +139,14 @@ GNSS Constellation
        │ 1PPS (phase/freq)       │
        ▼                         ▼
 ┌──────────┐    disciplines   ┌──────┐    HW timestamps  ┌──────────┐
-│   DPLL   │───────────────►  │ PHC  │───────────────►   │  ptp4l   │
-│  (OCXO)  │                  │      │                   │ (TT      │
-└──────────┘                  └──┬───┘                   │  ports)  │
-                                 │                       └──────────┘
-                                 │ phc2sys                    │
+│   DPLL   │───────────────►  │ PHC  │───────────────►   │  PTP TT  │
+│  (OCXO)  │                  │      │                   │ TT       │
+└──────────┘                  └──────┘                   └──────────┘
+                                 │                            │
+                                 │ ToD                        │
                                  ▼                            ▼
                           ┌────────────┐                 Downstream
-                          │  phc2sys   │                 PTP clients
-                          │ CLOCK_REAL │
+                          │ CLOCK_REAL │                 PTP clients
                           └────────────┘
 ```
 
@@ -157,9 +156,9 @@ GNSS Constellation
 | :---------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------- | :----------------------------------------------------------- |
 | **GNSS Receiver** | Receives RF signal from GNSS constellation; outputs 1PPS phase reference and ToD (NMEA/UBX)                                                                                                         | DPLL via 1PPS & PHC via ToD         | GNSS constellation                                           |
 | **DPLL**          | Digital PLL with OCXO. Locks to GNSS 1PPS in normal operation as a source of phase and frequency. Provides holdover stability when GNSS is lost                                                     | PHC                                 | GNSS 1PPS                                                    |
-| **PHC**           | PTP Hardware Clock on the NIC. Frequency driven by the DPLL output; phase/ToD aligned by ts2phc comparing the GNSS 1PPS against the PHC output. Provides a source of HW timestamps for PTP messages | ptp4l (time base for HW timestamps) | DPLL (frequency) and GNSS 1PPS + ToD (phase/time via ts2phc) |
-| **ptp4l**         | PTP protocol engine in grandmaster mode. Distributes Announce/Sync/Follow_Up on all TimeTransmitter-only ports                                                                                               | —                                   | PHC (via HW timestamps)                                      |
-| **phc2sys**       | Synchronises the OS system clock (`CLOCK_REALTIME`) to the PHC                                                                                                                                      | System clock                        | PHC                                                          |
+| **PHC**           | PTP Hardware Clock on the NIC. Frequency driven by the DPLL output; phase/ToD aligned by ts2phc comparing the GNSS 1PPS against the PHC output. Provides a source of HW timestamps for PTP messages | PTP (time base for HW timestamps) | DPLL (frequency) and GNSS 1PPS + ToD (phase/time) |
+| **PTP**           | PTP protocol engine in grandmaster mode. Distributes Announce/Sync/Follow_Up on all TimeTransmitter-only ports                                                                                               | Downstream clients                 | PHC (via HW timestamps)                                      |
+| **CLOCK_REALTIME**         | The OS system clock                                                                                                                                                    | —                                   | PHC                                                          |
 
 **Signal flow in multi-NIC configuration (leader + follower):**
 
@@ -168,7 +167,7 @@ GNSS Constellation
        │
        │ RF signal
        ▼
-┌──────────────┐       ts2phc
+┌──────────────┐
 │ GNSS Receiver│───────────────────┐
 │ (1PPS + ToD) │    ToD (NMEA)     │
 └──────────────┘                   │
@@ -176,21 +175,20 @@ GNSS Constellation
        │ 1PPS (phase/freq)         │
        ▼                           ▼
 ┌────────────┐    disciplines   ┌──────┐    HW timestamps  ┌──────────┐
-│ DPLL (Ldr) │───────────────►  │ PHC1 │───────────────►   │ ptp4l 1  │──┐
-│  (OCXO)    │                  │(Lead)│                   │ (TTL     │  │
+│ DPLL (Ldr) │───────────────►  │ PHC1 │───────────────►   │ PTP TT   │──┐
+│  (OCXO)    │                  │(Lead)│                   │          │  │
 └────────────┘                  └──────┘                   └──────────┘  │
        │                           │                                     │
-       │ physical signal           │ phc2sys                             ▼
+       │ physical signal           │ ToD                                 ▼
        │                           ▼                                Downstream
        │                    ┌────────────┐                          PTP clients
-       │                    │  phc2sys   │
        │                    │ CLOCK_REAL │
        │                    └────────────┘
        │                          │ ToD
        ▼                          ▼
 ┌────────────┐    disciplines   ┌──────┐    HW timestamps  ┌──────────┐
-│ DPLL (Flw) │───────────────►  │ PHC2 │───────────────►   │ ptp4l 2  │──┐
-│  (OCXO)    │                  │(Flw) │                   │ (TT)     │  │
+│ DPLL (Flw) │───────────────►  │ PHC2 │───────────────►   │ PTP TT   │──┐
+│  (OCXO)    │                  │(Flw) │                   │          │  │
 └────────────┘                  └──────┘                   └──────────┘  │
                                                                          │
                                                                          ▼
@@ -217,21 +215,20 @@ When the GNSS reference is lost, the DPLL free-runs on its internal OCXO. Unlike
        X 1PPS (phase/freq)         X
 
 ┌──────────┐    disciplines   ┌──────┐    HW timestamps  ┌──────────┐
-│   DPLL   │───────────────►  │ PHC  │───────────────►   │  ptp4l   │
-│  (OCXO   │                  │      │                   │ (TT      │
-│ holdover)│                  └──────┘                   │  ports)  │
-└──────────┘                     │                       └──────────┘
-                                 │                            │
-                                 │ phc2sys                    ▼
+│   DPLL   │───────────────►  │ PHC  │───────────────►   │ PTP TT   │
+│  (OCXO   │                  │      │                   └──────────┘
+│ holdover)│                  └──────┘                        │
+└──────────┘                     │                            │
+                                 │  ToD                       │
+                                 │                            ▼
                                  ▼                       Downstream
                           ┌────────────┐                 PTP clients
-                          │  phc2sys   │
                           │ CLOCK_REAL │
                           └────────────┘
 ```
 
 - The DPLL locks its numerically controlled frequency to the last known good tuning value, driven by the highly stable, free-running OCXO.
-- ptp4l continues distributing Sync/Announce to downstream, but with holdover clock class (7 or 140)
+- PTP continues distributing Sync/Announce to downstream, but with holdover clock class (7 or 140)
 - The holdover performance is bounded by the local OCXO drift model (see §6.8)
 
 ### 5.6 Actors

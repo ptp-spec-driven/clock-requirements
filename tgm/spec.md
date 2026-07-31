@@ -66,6 +66,8 @@ is a bug or future backlog item.
 - T-TSC - Telecom Time Synchronous Clock
 - TAI - International Atomic Time (Temps Atomique International)
 - ToD - Time of Day
+- TR - Time Receiver
+- TT - Time Transmitter
 - UTC - Coordinated Universal Time
 
 ### 4.2 Normative References
@@ -102,7 +104,7 @@ For T-TSC (Telecom Time Synchronous Clock) requirements, see [T-TSC spec](../tts
 
 ### 5.2 Supported Topologies
 
-- Single-NIC T-GM (one NIC with master-only PTP ports)
+- Single-NIC T-GM (one NIC with TimeTransmitter-only PTP ports)
 - Multi-NIC T-GM (leader + follower NICs, all distributing PTP downstream)
 - Optional SyncE frequency distribution on all configured ports
 
@@ -138,7 +140,7 @@ GNSS Constellation
        ▼                         ▼
 ┌──────────┐    disciplines   ┌──────┐    HW timestamps  ┌──────────┐
 │   DPLL   │───────────────►  │ PHC  │───────────────►   │  ptp4l   │
-│  (OCXO)  │                  │      │                   │ (master  │
+│  (OCXO)  │                  │      │                   │ (TT      │
 └──────────┘                  └──┬───┘                   │  ports)  │
                                  │                       └──────────┘
                                  │ phc2sys                    │
@@ -156,7 +158,7 @@ GNSS Constellation
 | **GNSS Receiver** | Receives RF signal from GNSS constellation; outputs 1PPS phase reference and ToD (NMEA/UBX)                                                                                                         | DPLL via 1PPS & PHC via ToD         | GNSS constellation                                           |
 | **DPLL**          | Digital PLL with OCXO. Locks to GNSS 1PPS in normal operation as a source of phase and frequency. Provides holdover stability when GNSS is lost                                                     | PHC                                 | GNSS 1PPS                                                    |
 | **PHC**           | PTP Hardware Clock on the NIC. Frequency driven by the DPLL output; phase/ToD aligned by ts2phc comparing the GNSS 1PPS against the PHC output. Provides a source of HW timestamps for PTP messages | ptp4l (time base for HW timestamps) | DPLL (frequency) and GNSS 1PPS + ToD (phase/time via ts2phc) |
-| **ptp4l**         | PTP protocol engine in grandmaster mode. Distributes Announce/Sync/Follow_Up on all master-only ports                                                                                               | —                                   | PHC (via HW timestamps)                                      |
+| **ptp4l**         | PTP protocol engine in grandmaster mode. Distributes Announce/Sync/Follow_Up on all TimeTransmitter-only ports                                                                                               | —                                   | PHC (via HW timestamps)                                      |
 | **phc2sys**       | Synchronises the OS system clock (`CLOCK_REALTIME`) to the PHC                                                                                                                                      | System clock                        | PHC                                                          |
 
 **Signal flow in multi-NIC configuration (leader + follower):**
@@ -175,7 +177,7 @@ GNSS Constellation
        ▼                           ▼
 ┌────────────┐    disciplines   ┌──────┐    HW timestamps  ┌──────────┐
 │ DPLL (Ldr) │───────────────►  │ PHC1 │───────────────►   │ ptp4l 1  │──┐
-│  (OCXO)    │                  │(Lead)│                   │ (master) │  │
+│  (OCXO)    │                  │(Lead)│                   │ (TTL     │  │
 └────────────┘                  └──────┘                   └──────────┘  │
        │                           │                                     │
        │ physical signal           │ phc2sys                             ▼
@@ -188,7 +190,7 @@ GNSS Constellation
        ▼                          ▼
 ┌────────────┐    disciplines   ┌──────┐    HW timestamps  ┌──────────┐
 │ DPLL (Flw) │───────────────►  │ PHC2 │───────────────►   │ ptp4l 2  │──┐
-│  (OCXO)    │                  │(Flw) │                   │ (master) │  │
+│  (OCXO)    │                  │(Flw) │                   │ (TT)     │  │
 └────────────┘                  └──────┘                   └──────────┘  │
                                                                          │
                                                                          ▼
@@ -216,7 +218,7 @@ When the GNSS reference is lost, the DPLL free-runs on its internal OCXO. Unlike
 
 ┌──────────┐    disciplines   ┌──────┐    HW timestamps  ┌──────────┐
 │   DPLL   │───────────────►  │ PHC  │───────────────►   │  ptp4l   │
-│  (OCXO   │                  │      │                   │ (master  │
+│  (OCXO   │                  │      │                   │ (TT      │
 │ holdover)│                  └──────┘                   │  ports)  │
 └──────────┘                     │                       └──────────┘
                                  │                            │
@@ -235,7 +237,7 @@ When the GNSS reference is lost, the DPLL free-runs on its internal OCXO. Unlike
 ### 5.6 Actors
 
 - System Administrator: configures T-GM profiles and thresholds
-- Downstream PTP nodes: consume Announce/Sync from master ports
+- Downstream PTP nodes: consume Announce/Sync from TimeTransmitter ports
 - Monitoring systems: subscribe to clock state events
 
 ### 5.7 [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Telecom Profile Parameters
@@ -436,7 +438,7 @@ For multi-NIC configurations, the leader DPLL distributes 1PPS to the follower D
 
 ## 8. Announce Message Behaviour
 
-All PTP ports on the T-GM operate in the MASTER role. Announce messages are transmitted on all configured master-only ports. The content of these messages must reflect the current T-GM state. In the Locked state, the T-GM advertises itself as a GNSS-traceable PRTC. In all other states, the T-GM advertises degraded parameters.
+All PTP ports on the T-GM operate in the TimeTransmitter role. Announce messages are transmitted on all configured TimeTransmitter-only ports. The content of these messages must reflect the current T-GM state. In the Locked state, the T-GM advertises itself as a GNSS-traceable PRTC. In all other states, the T-GM advertises degraded parameters.
 
 ### 8.1 Locked State Announce Content
 
@@ -684,7 +686,7 @@ The following metrics must be exposed for T-GM monitoring. All metrics use the `
 
 | Metric                         | Type  | Labels                     | Values                                                         | Description                                                                      |
 | :----------------------------- | :---- | :------------------------- | :------------------------------------------------------------- | :------------------------------------------------------------------------------- |
-| `openshift_ptp_interface_role` | gauge | `iface`, `node`, `process` | 0=PASSIVE, 1=SLAVE, 2=MASTER, 3=FAULTY, 4=UNKNOWN, 5=LISTENING | PTP port state per interface (from ptp4l). All T-GM ports must report MASTER (2) |
+| `openshift_ptp_interface_role` | gauge | `iface`, `node`, `process` | 0=PASSIVE, 1=TR/SLAVE, 2=TT/MASTER, 3=FAULTY, 4=UNKNOWN, 5=LISTENING | PTP port state per interface (from ptp4l). All T-GM ports must report TT/MASTER (2) |
 
 #### 11.1.5 Process Health
 
@@ -787,7 +789,7 @@ The user declares the desired clock role and the IEEE 1588 PTP profile. The syst
 
 | Parameter    | Values                       | Effect                                                                                                                              |
 | :----------- | :--------------------------- | :---------------------------------------------------------------------------------------------------------------------------------- |
-| `clockType`  | `T-GM`                       | Determines the set of processes started, port roles (MASTER only), announce behavior, and which state machine specification applies |
+| `clockType`  | `T-GM`                       | Determines the set of processes started, port roles (TimeTransmitter only), announce behavior, and which state machine specification applies |
 | `ptpProfile` | IEEE 1588 profile identifier | Determines transport, delay mechanism, BTCA variant, domain number range, and which PTP parameters are profile-mandated             |
 
 When a profile is designated, certain PTP parameters are fixed by the profile and must not be overridden by the user. The system must reject invalid combinations at admission time with an informative error identifying the violating parameter.
@@ -820,7 +822,7 @@ When a profile is designated, certain PTP parameters are fixed by the profile an
 
 **Additional Configuration Requirements:**
 
-- **Per-port role assignment:** Each NIC port shall be individually configurable as `masterOnly 1` (time transmitter) or `masterOnly 0` (time receiver).
+- **Per-port role assignment:** Each NIC port shall be individually configurable as `masterOnly 1` (time transmitter) or ommitted (no TimeReceivers may be configured for T-GM casee)
 - **DPLL and SyncE parameters:** Reference input priorities and SyncE network option ([ITU-T G.8264](https://www.itu.int/rec/T-REC-G.8264) Option 1 or Option 2) shall be configurable.
 
 #### 13.1.2 GNSS Configuration
@@ -1017,7 +1019,7 @@ The system provides synchronization state and health information through multipl
 | FUNC-TGM013-R1 | 11.1.1 clock_state    | Given a T-GM is running, then `openshift_ptp_clock_state` must be emitted per interface and per process with values 0=FREERUN, 1=LOCKED, 2=HOLDOVER                    |
 | FUNC-TGM013-R2 | 11.1.1 clock_class    | Given a T-GM is running, then `openshift_ptp_clock_class` must be emitted with the current clock class value and updated within 1 second of a change                   |
 | FUNC-TGM013-R3 | 11.1.2 offset_ns      | Given a T-GM is running, then `openshift_ptp_offset_ns` must be emitted per measurement point (ts2phc, GNSS, DPLL, phc2sys)                                            |
-| FUNC-TGM013-R4 | 11.1.4 interface_role | Given a T-GM is running, then all PTP ports must report `openshift_ptp_interface_role` = 2 (MASTER)                                                                    |
+| FUNC-TGM013-R4 | 11.1.4 interface_role | Given a T-GM is running, then all PTP ports must report `openshift_ptp_interface_role` = 2 (TT/MASTER)                                                                    |
 | FUNC-TGM013-R5 | 11.1.5 process_status | Given a T-GM is running, then `openshift_ptp_process_status` (0=DOWN, 1=UP) and `openshift_ptp_process_restart_count` must be emitted per managed process              |
 | FUNC-TGM013-R6 | 10.4, 11.1.3          | Given a T-GM has GNSS and DPLL subsystems, then GNSS fix state, GNSS offset, DPLL lock state, and DPLL phase offset metrics must be published at least once per second |
 

@@ -44,22 +44,17 @@ is a bug or future backlog item.
 
 - 1PPS - One Pulse Per Second
 - BTCA - Best TimeTransmitter Clock Algorithm
-- cTE - Constant Time Error
 - DNU - Do Not Use (SyncE quality level)
 - DPLL - Digital Phase-Locked Loop
-- dTE - Dynamic Time Error
 - EEC - Ethernet Equipment Clock
 - ESMC - Ethernet Synchronisation Messaging Channel
 - FFS - For Further Study
 - GNSS - Global Navigation Satellite System
-- maxTE - Maximum Time Error
-- MTIE - Maximum Time Interval Error
 - NIC - Network Interface Card
 - NMEA - National Marine Electronics Association
 - OCXO - Oven-Controlled Crystal Oscillator
 - PHC - PTP Hardware Clock
 - PHY - Physical Layer (Ethernet)
-- PMC - PTP Management Client
 - PRC - Primary Reference Clock
 - PRTC - Primary Reference Time Clock
 - QL - Quality Level (SyncE)
@@ -70,7 +65,6 @@ is a bug or future backlog item.
 - T-GM - Telecom Grandmaster
 - T-TSC - Telecom Time Synchronous Clock
 - TAI - International Atomic Time (Temps Atomique International)
-- TDEV - Time Deviation
 - ToD - Time of Day
 - UTC - Coordinated Universal Time
 

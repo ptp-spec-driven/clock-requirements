@@ -430,7 +430,7 @@ Unlike the T-BC (which reverses synchronisation direction between Locked and Hol
 
 In Holdover, the GNSS input is lost but the DPLL continues to discipline the PHC from its free-running OCXO. No pin reconfiguration or direction reversal is required. The DPLL transitions from LOCKED to HOLDOVER/LOCKED_HO_ACQ internally.
 
-For multi-NIC configurations, the leader DPLL distributes 1PPS to the follower DPLL via SMA cable. This path is also unidirectional and does not change during holdover.
+For multi-NIC configurations, the leader DPLL distributes 1PPS to the follower DPLL via a physical connection such as an SMA cable. This path is also unidirectional and does not change during holdover.
 
 ---
 

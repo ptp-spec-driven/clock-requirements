@@ -77,19 +77,22 @@ is a bug or future backlog item.
 ### 4.2 Normative References
 
 - [IEEE 1588-2008 (PTP v2)](https://standards.ieee.org/ieee/1588/4372/)
-- [ITU-T G.8272 (2018) — Timing characteristics of primary reference time clocks (PRTC-A, PRTC-B)](https://www.itu.int/rec/T-REC-G.8272)
-- [ITU-T G.8272.1 (2016) — Timing characteristics of enhanced primary reference time clocks (ePRTC)](https://www.itu.int/rec/T-REC-G.8272.1)
-- [ITU-T G.8273.2 (2020) — T-BC/T-TSC timing characteristics](https://www.itu.int/rec/T-REC-G.8273.2)
-- [ITU-T G.8275 (2020) — Framework and requirements for packet-based frequency, phase, and time distribution](https://www.itu.int/rec/T-REC-G.8275)
-- [ITU-T G.8275.1 (2022) — PTP telecom profile for phase/time synchronisation with full timing support from the network](https://www.itu.int/rec/T-REC-G.8275.1)
-- [ITU-T G.8262 (2018) — Timing characteristics of synchronous equipment clocks (EEC)](https://www.itu.int/rec/T-REC-G.8262)
-- [ITU-T G.8264 (2017) — Distribution of timing information through packet networks (ESMC / SyncE)](https://www.itu.int/rec/T-REC-G.8264)
-- [ITU-T G.811 (1997) — Timing characteristics of primary reference clocks](https://www.itu.int/rec/T-REC-G.811)
+- [Recommendation ITU-T G.8272/Y.1367 (2018) Amendment 2 (11/22)](https://www.itu.int/rec/t-rec-g.8272/en): Timing characteristics of primary reference time clocks
+- [Recommendation ITU-T G.8272.1/Y.1367.1 (01/24)](https://www.itu.int/rec/t-rec-g.8272.1/en): Timing characteristics of enhanced primary reference time clocks
+- [Recommendation ITU-T G.8275/Y.1369 (01/24)](https://www.itu.int/rec/t-rec-g.8275/en): Architecture and requirements for packet-based time and phase distribution
+- [Recommendation ITU-T G8275.1/Y.1369.1 (2022): Amendment 1 (01/24)](https://www.itu.int/rec/t-rec-g.8275.1/en): Precision time protocol telecom profile for phase/time synchronization with full timing support from the network - Amendment 1
+- [Recommendation ITU-T G8275.2/Y.1369.2 (2022) Amendment 1 (01/24)](https://www.itu.int/rec/t-rec-g.8275.2/en): Precision time protocol telecom profile for time/phase synchronization with partial timing support from the network - Amendment 1
+- [Recommendation ITU-T G.8262/Y.1362 (2018) Amendment 1 (03/2020)](https://www.itu.int/rec/t-rec-g.8262): Timing characteristics of synchronous equipment slave clock - Amendment 1
+- [Recommendation ITU-T G.8262.1/Y.1362.1 (11/22)](https://www.itu.int/rec/T-REC-G.8262.1/en): Timing characteristics of enhanced synchronous equipment slave clock
+- [Recommendation ITU-T G.8264/Y.1364 (2017) Amendment 2 (01/2024)](https://www.itu.int/rec/T-REC-G.8264): Distribution of timing information through packet networks - Amendment 1
+- [Recommendation ITU-T G.811 (09/1997) Amendment 1 (04/16)](https://www.itu.int/rec/t-rec-g.811): Timing characteristics of primary reference clocks
+
+> Note: These specific versions are the references in O-RAN.WG4.TS.CUS.0-R005-v21.00
 
 ### 4.3 Informative References
 
 - O-RAN O-Cloud Notification API v2
-- [O-RAN.WG4.CUS.0-v11.00 — O-RAN Control, User and Synchronization Plane Specification](https://orandownloadsweb.azurewebsites.net/specifications)
+- [O-RAN.WG4.TS.CUS.0-R005-v21.00 — O-RAN Control, User and Synchronization Plane Specification](https://orandownloadsweb.azurewebsites.net/specifications)
 - CloudEvents v1.0 specification
 
 ---

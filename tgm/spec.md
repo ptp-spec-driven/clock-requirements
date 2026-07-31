@@ -1,9 +1,9 @@
 # Feature Specification: T-GM Testable Requirements
 
-**Module**: PTP Operator Stack (np-ptp-operator, np-linuxptp-daemon, cloud-event-proxy)
+**Module**: PTP Operator Stack
 **Author**: Jim Ramsay
 **Created**: 2026-06-22
-**Last Updated**: 2026-07-16
+**Last Updated**: 2026-07-30
 **Status**: Draft
 
 ---

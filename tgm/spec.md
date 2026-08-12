@@ -886,18 +886,17 @@ The system provides synchronization state and health information through multipl
 | Requirement ID | Traceability                                                       | Requirement text                                                                                                                                                                                                            |
 | :------------- | :----------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | FUNC-TGM001-R1 | 6.4 AllLocked                                                      | Given a T-GM is initialised in Free-Run state, when GNSS is acquired and all lock conditions are met (GNSS fix valid, DPLL locked, PHC locked, all offsets within threshold), then the T-GM must transition to Locked state |
-| FUNC-TGM001-R2 | 8.1, [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Table 2 | Upon entering Locked state, Announce messages on all ports must reflect clockClass 6, clockAccuracy 0x21, timeSource GNSS (0x20), timeTraceable TRUE                                                                        |
+| FUNC-TGM001-R2 | 8.1, [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Table 2 | Upon entering Locked state, Announce messages on all ports must reflect clockClass 6, clockAccuracy 0x21, timeSource GNSS (0x20), timeTraceable TRUE, frequencyTraceable TRUE                                               |
 
 ### 15.2 State Machine — Holdover Entry on GNSS Loss
 
 #### ID: FUNC-TGM002
 
-| Requirement ID | Traceability                                                       | Requirement text                                                                                                                                                             |
-| :------------- | :----------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FUNC-TGM002-R1 | 6.4 GNSSLost, 6.5 T3                                               | Given a T-GM is in Locked state, when the GNSS reference is lost and the DPLL enters holdover or locked-holdover-acquired, then the T-GM must transition to Holdover-In-Spec |
-| FUNC-TGM002-R2 | 8.2, [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Table 2 | Upon entering Holdover-In-Spec, Announce messages must reflect clockClass 7, timeSource internal oscillator (0xA0), timeTraceable TRUE                                       |
-| FUNC-TGM002-R3 | 6.8.4                                                              | Upon entering holdover, the holdover timer must be started                                                                                                                   |
-| FUNC-TGM002-R4 | 7                                                                  | Given a T-GM enters Holdover, it must maintain a unidirectional signal flow without reversing the synchronisation direction                                                  |
+| Requirement ID | Traceability                                                       | Requirement text                                                                                                                                                                               |
+| :------------- | :----------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FUNC-TGM002-R1 | 6.4 GNSSLost, 6.5 T3                                               | Given a T-GM is in Locked state, when the GNSS reference is lost and the DPLL enters holdover or locked-holdover-acquired, then the T-GM must transition to Holdover-In-Spec                   |
+| FUNC-TGM002-R2 | 8.2, [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Table 2 | Upon entering Holdover-In-Spec, Announce messages must reflect clockClass 7, clockAccuaracy unknown (0xFE), timeSource internal oscillator (0xA0), timeTraceable TRUE, frequencyTraceable TRUE |
+| FUNC-TGM002-R3 | 7                                                                  | Given a T-GM enters Holdover, it must maintain a unidirectional signal flow without reversing the synchronisation direction                                                                    |
 
 ### 15.3 State Machine — Holdover In-Spec to Out-Of-Spec
 
@@ -906,16 +905,16 @@ The system provides synchronization state and health information through multipl
 | Requirement ID | Traceability                                                       | Requirement text                                                                                                                                                                                          |
 | :------------- | :----------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | FUNC-TGM003-R1 | 6.4 Offset-Above-InSpecOffset, 6.5 T6                              | Given a T-GM is in Holdover-In-Spec, when the measured phase offset exceeds `MaxInSpecOffset` or the holdover timer exceeds `LocalHoldoverTimeout`, then the T-GM must transition to Holdover-Out-Of-Spec |
-| FUNC-TGM003-R2 | 8.3, [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Table 2 | Upon entering Holdover-Out-Of-Spec, Announce messages must reflect clockClass 140, timeTraceable FALSE, frequencyTraceable TRUE                                                                           |
+| FUNC-TGM003-R2 | 8.3, [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Table 2 | Upon entering Holdover-Out-Of-Spec, Announce messages must reflect clockClass 140, clockAccuracy unknown (0xFE), timeSource internal oscillator (0xA0), timeTraceable FALSE, frequencyTraceable TRUE      |
 
 ### 15.4 State Machine — Holdover to Free-Run
 
 #### ID: FUNC-TGM004
 
-| Requirement ID | Traceability                                                       | Requirement text                                                                                                                                               |
-| :------------- | :----------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FUNC-TGM004-R1 | 6.4 Holdover-To-FreeRun, 6.5 T7/T9                                 | Given a T-GM is in any Holdover state, when the measured or estimated phase offset exceeds `LocalMaxHoldoverOffSet`, then the T-GM must transition to Free-Run |
-| FUNC-TGM004-R2 | 8.4, [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Table 2 | Upon entering Free-Run, Announce messages must reflect clockClass 248, clockAccuracy unknown (0xFE), timeTraceable FALSE, frequencyTraceable FALSE             |
+| Requirement ID | Traceability                                                       | Requirement text                                                                                                                                                                          |
+| :------------- | :----------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FUNC-TGM004-R1 | 6.4 Holdover-To-FreeRun, 6.5 T7/T9                                 | Given a T-GM is in any Holdover state, when the measured or estimated phase offset exceeds `LocalMaxHoldoverOffSet`, then the T-GM must transition to Free-Run                            |
+| FUNC-TGM004-R2 | 8.4, [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Table 2 | Upon entering Free-Run, Announce messages must reflect clockClass 248, clockAccuracy unknown (0xFE), timeSource internal oscillator (0xA0), timeTraceable FALSE, frequencyTraceable FALSE |
 
 ### 15.5 State Machine — Re-Lock from Degraded State
 
@@ -924,7 +923,7 @@ The system provides synchronization state and health information through multipl
 | Requirement ID | Traceability                                                       | Requirement text                                                                                                                                                                  |
 | :------------- | :----------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | FUNC-TGM005-R1 | 6.4 AllLocked, 6.5 T5/T8                                           | Given a T-GM is in any Holdover or Free-Run state, when GNSS reference is re-acquired and all lock conditions are met per FUNC-TGM001-R1, then the T-GM must transition to Locked |
-| FUNC-TGM005-R2 | 8.1, [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Table 2 | Upon re-lock, Announce messages must be restored to Locked-state parameters (clockClass 6, timeSource GNSS)                                                                       |
+| FUNC-TGM005-R2 | 8.1, [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Table 2 | Upon re-lock, Announce messages must be restored to Locked-state parameters (See FUNC-TGM001-R2)                                                                                  |
 
 ### 15.6 State Machine — Non-GNSS Fault to Free-Run
 

@@ -337,7 +337,7 @@ The following conditions govern transitions between states. Each condition is ev
 | Condition Name                | Definition                                                                                                                                                                                                                          | Parameters                                         |
 | :---------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------- |
 | **GNSSAvailable**             | GNSS receiver has a valid 3D fix (fix status ≥ 3) and GNSS clock offset is within the configured threshold                                                                                                                          | `gnssOffsetThreshold`                              |
-| **GNSSLost**                  | GNSS receiver has lost valid fix (fix status < 3) or NMEA data is unavailable                                                                                                                                                       | —                                                  |
+| **GNSSLost**                  | GNSS receiver has lost valid fix (fix status < 3), detected spoofing or jamming, or NMEA data is unavailable                                                                                                                                                       | —                                                  |
 | **AllLocked**                 | All subsystems report LOCKED simultaneously: GNSS fix valid, GNSS offset within threshold, DPLL frequency and phase status both LOCKED, DPLL phase offset within in-spec threshold, PHC servo state s2, PHC offset within threshold | `inSyncConditionThreshold`, `inSyncConditionTimes` |
 | **HoldoverDataValid**         | DPLL is in HOLDOVER or LOCKED_HO_ACQ state — the OCXO has sufficient holdover data to maintain timing                                                                                                                               | —                                                  |
 | **Offset-Above-InSpecOffset** | Measured or estimated phase offset exceeds `MaxInSpecOffset`, or elapsed holdover time exceeds `LocalHoldoverTimeout`                                                                                                               | `MaxInSpecOffset`, `LocalHoldoverTimeout`          |
@@ -365,6 +365,7 @@ The initialisation transition occurs when the supervision software applies the n
 1. The current PTP clock type is determined from the configuration resource.
 2. Processes are started in the required order with generated configurations.
 3. DPLL pins are configured to the initial state for the determined clock type.
+4. GNSS receiver hardware is configured
 4. The system enters the **Free-Run** state unconditionally.
 
 Initialisation always ends in the Free-Run state regardless of whether GNSS is already available. The system must progress through the AllLocked condition to reach Locked.
@@ -397,9 +398,9 @@ The industry accepted model for clock time error ΔT(t) as a function of time is
 
 For practical application, where the stochastic component and initial frequency offset are difficult to estimate, a simplified model is sufficient:
 
-ΔT(t) = S·t + ½·A·t²
+ΔT(t) = T₀ + S·t + ½·A·t²
 
-The initial time offset T₀ from the full model (§6.8.1) is omitted because the clock is assumed to be well-synchronised at the moment of entering holdover (i.e., T₀ ≈ 0). The initial frequency offset Δf/f is absorbed into the linear term S, which represents the worst-case drift rate specified by the oscillator manufacturer.
+The initial frequency offset Δf/f is absorbed into the linear term S, which represents the worst-case drift rate specified by the oscillator manufacturer.
 
 The maximum values for ΔT and t are provided by the oscillator manufacturer as the maximum holdover time and the maximum offset accumulated during that time. S is the slope of the linear component (maximum offset drift rate). A is the oscillator ageing component, which becomes significant at longer holdover durations.
 

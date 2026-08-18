@@ -1,10 +1,38 @@
 # Feature Specification: T-GM Testable Requirements
 
 **Module**: PTP Operator Stack
+
 **Author**: Jim Ramsay
+
 **Created**: 2026-06-22
-**Last Updated**: 2026-07-30
+
+**Last Updated**: 2026-08-18
+
 **Status**: Draft
+
+### Approvals
+
+| Name           | Role     | Date       |
+| :------------- | :------- | :--------- |
+| Jim Ramsay     | Author   | 2026-08-18 |
+| Yang Liu       | Reviewer | —          |
+| Brady Johnson  | Reviewer | —          |
+| Ken Young      | Reviewer | —          |
+| Rigel Di Scala | Reviewer | —          |
+| Pasi Vaananen  | SME      | —          |
+
+---
+
+## Specification TODO
+
+Spec-level additions still needed.
+
+| #    | Area  | Item                                                                                                                                                                |
+| :--- | :---- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| S-01 | §5.3  | SyncE additional states and behaviours depending on the overall clock state are not yet defined in this document                                                    |
+| S-02 | §6.2  | Resolve FFS: whether the announced clock class/accuracy could be configurable or auto-configured when the internal accuracy warrants a better declaration than 0x21 |
+| S-03 | §6.7  | Resolve FFS: convergence time for lock — depends on GNSS acquisition time, servo algorithm, and DPLL lock time                                                      |
+| S-04 | §10.1 | Resolve FFS: DPLL fractional frequency offset measurement point                                                                                                     |
 
 ---
 
@@ -19,6 +47,16 @@ metrics, state machines, and event contracts. Describes WHAT the system must
 do and WHY — not HOW. Any delta between current code and this specification
 is a bug or future backlog item.
 
+This document is the **living single source of truth** for T-GM behaviour. Functional requirements (§15) and performance requirements (§16) define the finite, testable requirement set that the implementation must trace to.
+
+### Traceability Model
+
+| Layer                             | Section                      | Traceability column means                                                                                                  | Link target                                            |
+| :-------------------------------- | :--------------------------- | :------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------- |
+| **Behavioural**                   | §6–§14 (normative narrative) | Parent sections for FUNC/PERF IDs                                                                                          | Internal anchors in this document                      |
+| **Functional test requirements**  | §15                          | Maps each FUNC-TGM* ID to **internal spec sections** (our interpretation of standards + product behaviour)                 | e.g. [§6.4 AllLocked](#64-state-transition-conditions) |
+| **Performance test requirements** | §16                          | Maps each PERF-TGM* ID to the relevant **normative reference** clause/table, or to the internal section defining the model | e.g. [G.8272 §6.1](#42-normative-references)           |
+
 ---
 
 ## 2. Goals
@@ -30,7 +68,7 @@ is a bug or future backlog item.
 
 ## 3. Non-Goals
 
-- Duplicating upstream standards (IEEE 1588, [ITU-T G.8272](https://www.itu.int/rec/t-rec-g.8272/en), [G.8275](https://www.itu.int/rec/t-rec-g.8275/en))
+- Duplicating upstream standards ([IEEE 1588](#42-normative-references), [ITU-T G.8272](#42-normative-references), [G.8275](#42-normative-references))
 - Prescribing implementation details (languages, frameworks, internal APIs)
 - Defining T-BC (Boundary Clock) behaviour (covered in [T-BC spec](../tbc/spec.md))
 - Defining T-TSC behaviour (see [T-TSC spec](../ttsc/spec.md))
@@ -42,54 +80,55 @@ is a bug or future backlog item.
 
 ### 4.1 Abbreviations and Acronyms
 
-- 1PPS - One Pulse Per Second
-- BTCA - Best TimeTransmitter Clock Algorithm
-- DNU - Do Not Use (SyncE quality level)
-- DPLL - Digital Phase-Locked Loop
-- EEC - Ethernet Equipment Clock
-- ESMC - Ethernet Synchronisation Messaging Channel
-- FFS - For Further Study
-- GNSS - Global Navigation Satellite System
-- NIC - Network Interface Card
-- NMEA - National Marine Electronics Association
-- OCXO - Oven-Controlled Crystal Oscillator
-- PHC - PTP Hardware Clock
-- PHY - Physical Layer (Ethernet)
-- PRC - Primary Reference Clock
-- PRTC - Primary Reference Time Clock
-- QL - Quality Level (SyncE)
-- RF - Radio Frequency
-- SMA - SubMiniature version A (coaxial connector)
-- SyncE - Synchronous Ethernet
-- T-BC - Telecom Boundary Clock
-- T-GM - Telecom Grandmaster
-- T-TSC - Telecom Time Synchronous Clock
-- TAI - International Atomic Time (Temps Atomique International)
-- ToD - Time of Day
-- TR - Time Receiver
-- TT - Time Transmitter
-- UTC - Coordinated Universal Time
+- **1PPS** - One Pulse Per Second
+- **BTCA** - Best TimeTransmitter Clock Algorithm
+- **DNU** - Do Not Use (SyncE quality level)
+- **DPLL** - Digital Phase-Locked Loop
+- **EEC** - Ethernet Equipment Clock
+- **ESMC** - Ethernet Synchronisation Messaging Channel
+- **FFS** - For Further Study
+- **GNSS** - Global Navigation Satellite System
+- **NIC** - Network Interface Card
+- **NMEA** - National Marine Electronics Association
+- **OCXO** - Oven-Controlled Crystal Oscillator
+- **PHC** - PTP Hardware Clock
+- **PHY** - Physical Layer (Ethernet)
+- **PRC** - Primary Reference Clock
+- **PRTC** - Primary Reference Time Clock
+- **QL** - Quality Level (SyncE)
+- **RF** - Radio Frequency
+- **SMA** - SubMiniature version A (coaxial connector)
+- **SyncE** - Synchronous Ethernet
+- **T-BC** - Telecom Boundary Clock
+- **T-GM** - Telecom Grandmaster
+- **T-TSC** - Telecom Time Synchronous Clock
+- **TAI** - International Atomic Time (Temps Atomique International)
+- **ToD** - Time of Day
+- **TR** - Time Receiver
+- **TT** - Time Transmitter
+- **UTC** - Coordinated Universal Time
 
 ### 4.2 Normative References
 
-- [IEEE 1588-2008 (PTP v2)](https://standards.ieee.org/ieee/1588/4372/)
-- [Recommendation ITU-T G.8272/Y.1367 (2018) Amendment 2 (11/22)](https://www.itu.int/rec/t-rec-g.8272/en): Timing characteristics of primary reference time clocks
-- [Recommendation ITU-T G.8272.1/Y.1367.1 (01/24)](https://www.itu.int/rec/t-rec-g.8272.1/en): Timing characteristics of enhanced primary reference time clocks
-- [Recommendation ITU-T G.8275/Y.1369 (01/24)](https://www.itu.int/rec/t-rec-g.8275/en): Architecture and requirements for packet-based time and phase distribution
-- [Recommendation ITU-T G8275.1/Y.1369.1 (2022): Amendment 1 (01/24)](https://www.itu.int/rec/t-rec-g.8275.1/en): Precision time protocol telecom profile for phase/time synchronization with full timing support from the network - Amendment 1
-- [Recommendation ITU-T G8275.2/Y.1369.2 (2022) Amendment 1 (01/24)](https://www.itu.int/rec/t-rec-g.8275.2/en): Precision time protocol telecom profile for time/phase synchronization with partial timing support from the network - Amendment 1
-- [Recommendation ITU-T G.8262/Y.1362 (2018) Amendment 1 (03/2020)](https://www.itu.int/rec/t-rec-g.8262): Timing characteristics of synchronous equipment slave clock - Amendment 1
-- [Recommendation ITU-T G.8262.1/Y.1362.1 (11/22)](https://www.itu.int/rec/T-REC-G.8262.1/en): Timing characteristics of enhanced synchronous equipment slave clock
-- [Recommendation ITU-T G.8264/Y.1364 (2017) Amendment 2 (01/2024)](https://www.itu.int/rec/T-REC-G.8264): Distribution of timing information through packet networks - Amendment 1
-- [Recommendation ITU-T G.811 (09/1997) Amendment 1 (04/16)](https://www.itu.int/rec/t-rec-g.811): Timing characteristics of primary reference clocks
+- **[N1]** [IEEE 1588-2008 (PTP v2)](https://standards.ieee.org/ieee/1588/4372/): "IEEE Standard for a Precision Clock Synchronization Protocol for Networked Measurement and Control Systems" (referenced for backward compatibility with deployed equipment).
+- **[N2]** [IEEE 1588-2019 (PTP v2.1)](https://standards.ieee.org/ieee/1588/6825/): "Precision Time Protocol".
+- **[N3]** [Recommendation ITU-T G.8272/Y.1367 (2018) Amendment 2 (11/22)](https://www.itu.int/rec/t-rec-g.8272/en): "Timing characteristics of primary reference time clocks".
+- **[N4]** [Recommendation ITU-T G.8272.1/Y.1367.1 (01/24)](https://www.itu.int/rec/t-rec-g.8272.1/en): "Timing characteristics of enhanced primary reference time clocks".
+- **[N5]** [Recommendation ITU-T G.8275/Y.1369 (01/24)](https://www.itu.int/rec/t-rec-g.8275/en): "Architecture and requirements for packet-based time and phase distribution".
+- **[N6]** [Recommendation ITU-T G8275.1/Y.1369.1 (2022) Amendment 1 (01/24)](https://www.itu.int/rec/t-rec-g.8275.1/en): "Precision time protocol telecom profile for phase/time synchronization with full timing support from the network".
+- **[N7]** [Recommendation ITU-T G8275.2/Y.1369.2 (2022) Amendment 1 (01/24)](https://www.itu.int/rec/t-rec-g.8275.2/en): "Precision time protocol telecom profile for time/phase synchronization with partial timing support from the network".
+- **[N8]** [Recommendation ITU-T G.8262/Y.1362 (2018) Amendment 1 (03/2020)](https://www.itu.int/rec/t-rec-g.8262): "Timing characteristics of synchronous equipment slave clock".
+- **[N9]** [Recommendation ITU-T G.8262.1/Y.1362.1 (11/22)](https://www.itu.int/rec/T-REC-G.8262.1/en): "Timing characteristics of enhanced synchronous equipment slave clock".
+- **[N10]** [Recommendation ITU-T G.8264/Y.1364 (2017) Amendment 2 (01/2024)](https://www.itu.int/rec/T-REC-G.8264): "Distribution of timing information through packet networks".
+- **[N11]** [Recommendation ITU-T G.811 (09/1997) Amendment 1 (04/16)](https://www.itu.int/rec/t-rec-g.811): "Timing characteristics of primary reference clocks".
 
-> Note: These specific versions are the references in O-RAN.WG4.TS.CUS.0-R005-v21.00
+> Note: These specific versions are the references in [O-RAN.WG4.TS.CUS.0-R005-v21.00](#43-informative-references)
 
 ### 4.3 Informative References
 
-- O-RAN O-Cloud Notification API v2
-- [O-RAN.WG4.TS.CUS.0-R005-v21.00 — O-RAN Control, User and Synchronization Plane Specification](https://orandownloadsweb.azurewebsites.net/specifications)
-- CloudEvents v1.0 specification
+- **[I1]** [O-RAN O-Cloud Notification API v2](https://specifications.o-ran.org/): O-RAN O-Cloud Notification API Specification for Event Consumers.
+- **[I2]** [O-RAN.WG4.TS.CUS.0-R005-v21.00 — O-RAN Control, User and Synchronization Plane Specification](https://orandownloadsweb.azurewebsites.net/specifications)
+- **[I3]** [CloudEvents Specification v1.0](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md)
 
 ---
 
@@ -237,19 +276,19 @@ When the GNSS reference is lost, the DPLL free-runs on its internal OCXO. Unlike
 - Downstream PTP nodes: consume Announce/Sync from TimeTransmitter ports
 - Monitoring systems: subscribe to clock state events
 
-### 5.7 [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Telecom Profile Parameters
+### 5.7 [G.8275.1](#42-normative-references) Telecom Profile Parameters
 
-The T-GM operates under the [ITU-T G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) telecom profile for phase/time synchronisation with full timing support from the network. Key profile constraints:
+The T-GM operates under the [ITU-T G.8275.1](#42-normative-references) telecom profile for phase/time synchronisation with full timing support from the network. Key profile constraints:
 
-| Parameter              | [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Value | Notes                                                                          |
-| :--------------------- | :---------------------------------------------------------- | :----------------------------------------------------------------------------- |
-| domainNumber           | 24–43 (default 24)                                          | Per [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Table A.1            |
-| network transport      | IEEE 802.3 (Layer 2 Ethernet multicast)                     | Mandatory; UDP/IP transport is not permitted                                   |
-| delayMechanism         | Peer-to-peer (P2P)                                          | T-GM must respond to Pdelay_Req from directly connected peers with Pdelay_Resp |
-| logSyncInterval        | −4 (16 per second)                                          | Default per [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Table A.5    |
-| logAnnounceInterval    | −3 (8 per second)                                           | Default per [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Table A.5    |
-| announceReceiptTimeout | 3                                                           | Number of announce intervals before timeout                                    |
-| twoStepFlag            | TRUE or FALSE                                               | Both one-step and two-step operation are permitted by the profile              |
+| Parameter              | [G.8275.1](#42-normative-references) Value | Notes                                                                          |
+| :--------------------- | :----------------------------------------- | :----------------------------------------------------------------------------- |
+| domainNumber           | 24–43 (default 24)                         | Per [G.8275.1](#42-normative-references) Table A.1                             |
+| network transport      | IEEE 802.3 (Layer 2 Ethernet multicast)    | Mandatory; UDP/IP transport is not permitted                                   |
+| delayMechanism         | Peer-to-peer (P2P)                         | T-GM must respond to Pdelay_Req from directly connected peers with Pdelay_Resp |
+| logSyncInterval        | −4 (16 per second)                         | Default per [G.8275.1](#42-normative-references) Table A.5                     |
+| logAnnounceInterval    | −3 (8 per second)                          | Default per [G.8275.1](#42-normative-references) Table A.5                     |
+| announceReceiptTimeout | 3                                          | Number of announce intervals before timeout                                    |
+| twoStepFlag            | TRUE or FALSE                              | Both one-step and two-step operation are permitted by the profile              |
 
 ---
 
@@ -281,30 +320,30 @@ The T-GM operates under the [ITU-T G.8275.1](https://www.itu.int/rec/t-rec-g.827
 
 ### 6.2 State Definitions
 
-The T-GM supports four clock states. State names and semantics are derived from [ITU-T G.8275](https://www.itu.int/rec/t-rec-g.8275/en) (2024) Amd.1, Section VIII.2. Clock class values are per [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Section 6.4 Table 3.
+The T-GM supports four clock states. State names and semantics are derived from [ITU-T G.8275](#42-normative-references) (2024) Amd.1, Section VIII.2. Clock class values are per [G.8275.1](#42-normative-references) Section 6.4 Table 3.
 
 **Free-Run** — The clock has never been synchronised to a time source, or is in the process of synchronising but has not yet reached acceptable accuracy. This state applies at initial startup (GNSS cold start), or when holdover has expired, or when a non-GNSS fault prevents time traceability. Clock class: **248**.
 
-**Locked** — The clock is synchronised to its GNSS reference and all subsystems report acceptable accuracy. Per [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en), a GNSS-traceable T-GM in the locked state is a PRTC. Clock class: **6**.
+**Locked** — The clock is synchronised to its GNSS reference and all subsystems report acceptable accuracy. Per [G.8275.1](#42-normative-references), a GNSS-traceable T-GM in the locked state is a PRTC. Clock class: **6**.
 
-**Holdover-In-Spec** — The GNSS reference is lost but the clock is maintaining performance within the desired specification using holdover data from its OCXO. Per [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Section 6.4, a T-GM in holdover with PRC-traceable frequency advertises clock class 7. Clock class: **7**.
+**Holdover-In-Spec** — The GNSS reference is lost but the clock is maintaining performance within the desired specification using holdover data from its OCXO. Per [G.8275.1](#42-normative-references) Section 6.4, a T-GM in holdover with PRC-traceable frequency advertises clock class 7. Clock class: **7**.
 
 **Holdover-Out-Of-Spec** — The GNSS reference is lost and the clock can no longer maintain performance within the desired specification. The holdover offset has exceeded `MaxInSpecOffset` or the holdover timer has exceeded `LocalHoldoverTimeout`. Clock class: **140**.
 
-> **Note:** [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) defines additional clockClass values 150 and 160 for T-GM
+> **Note:** [G.8275.1](#42-normative-references) defines additional clockClass values 150 and 160 for T-GM
 > holdover (out-of-spec) when the frequency reference quality is below PRC.
 > clockClass 150 corresponds to SSU-A / ST2-level frequency traceability;
 > clockClass 160 corresponds to SSU-B / ST3E-level frequency traceability.
 > This specification uses clockClass 140 exclusively because the T-GM derives
 > its frequency from a GNSS source (which meets PRTC / PRC quality per
-> [ITU-T G.8272](https://www.itu.int/rec/t-rec-g.8272/en)). Deployments with lower-quality frequency references should
-> map to the appropriate clockClass per [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Section 6.4.
+> [ITU-T G.8272](#42-normative-references)). Deployments with lower-quality frequency references should
+> map to the appropriate clockClass per [G.8275.1](#42-normative-references) Section 6.4.
 
 > **Note:** Setting `timeTraceable=TRUE` and `frequencyTraceable=TRUE` during
 > Holdover-In-Spec (clockClass 7) is an implementation choice. Strictly per
-> IEEE 1588-2019, `timeTraceable` indicates the timescale is traceable to a
+> [IEEE 1588-2019](#42-normative-references), `timeTraceable` indicates the timescale is traceable to a
 > primary reference — which is no longer the case once the GNSS reference is
-> lost. However, [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) clockClass 7 implies the clock was previously
+> lost. However, [G.8275.1](#42-normative-references) clockClass 7 implies the clock was previously
 > traceable and is still operating within specification. Many telecom
 > deployments keep both flags TRUE during in-spec holdover to avoid
 > unnecessary downstream BTCA recalculations. This specification follows that
@@ -374,7 +413,7 @@ Initialisation always ends in the Free-Run state regardless of whether GNSS is a
 
 | Constraint                      | Value / Source                                                                                                                                        |
 | :------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| State transition event latency  | Events must be published within **1 second** of the state transition (required for O-RAN fault notification reactivity)                               |
+| State transition event latency  | Events must be published within **1 second** of the state transition (required for [O-RAN](#43-informative-references) fault notification reactivity) |
 | Announce message update latency | Announce content must reflect the new state within **1 Announce interval** after transition (prevents downstream from syncing to degraded clockClass) |
 | Convergence time for lock       | FFS — depends on GNSS acquisition time, servo algorithm, and DPLL lock time                                                                           |
 | AllLocked filter window         | `inSyncConditionTimes` consecutive samples below `inSyncConditionThreshold`                                                                           |
@@ -440,29 +479,29 @@ All PTP ports on the T-GM operate in the TimeTransmitter role. Announce messages
 
 ### 8.1 Locked State Announce Content
 
-| Information Element                             | Content                                                                              |
-| :---------------------------------------------- | :----------------------------------------------------------------------------------- |
-| sourcePortIdentity                              | Local clockId of the T-GM + PortNumber                                               |
-| leap61                                          | Per GNSS leap-second announcement                                                    |
-| leap59                                          | Per GNSS leap-second announcement                                                    |
-| currentUtcOffsetValid                           | TRUE                                                                                 |
-| ptpTimescale                                    | TRUE                                                                                 |
-| timeTraceable                                   | **TRUE**                                                                             |
-| frequencyTraceable                              | **TRUE**                                                                             |
-| currentUtcOffset                                | Current TAI−UTC offset                                                               |
-| grandmasterPriority1                            | Configured priority1 (128 per [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en)) |
-| grandmasterClockQuality.clockClass              | **6**                                                                                |
-| grandmasterClockQuality.clockAccuracy           | **0x21** (100 ns)                                                                    |
-| grandmasterClockQuality.offsetScaledLogVariance | **0x4E5D**                                                                           |
-| grandmasterPriority2                            | Configured priority2 (from ptp4lConf)                                                |
-| grandmasterIdentity                             | Local clockId                                                                        |
-| stepsRemoved                                    | 0                                                                                    |
-| timeSource                                      | **GNSS (0x20)**                                                                      |
-| synchronizationUncertain                        | Not supported in this version                                                        |
+| Information Element                             | Content                                                             |
+| :---------------------------------------------- | :------------------------------------------------------------------ |
+| sourcePortIdentity                              | Local clockId of the T-GM + PortNumber                              |
+| leap61                                          | Per GNSS leap-second announcement                                   |
+| leap59                                          | Per GNSS leap-second announcement                                   |
+| currentUtcOffsetValid                           | TRUE                                                                |
+| ptpTimescale                                    | TRUE                                                                |
+| timeTraceable                                   | **TRUE**                                                            |
+| frequencyTraceable                              | **TRUE**                                                            |
+| currentUtcOffset                                | Current TAI−UTC offset                                              |
+| grandmasterPriority1                            | Configured priority1 (128 per [G.8275.1](#42-normative-references)) |
+| grandmasterClockQuality.clockClass              | **6**                                                               |
+| grandmasterClockQuality.clockAccuracy           | **0x21** (100 ns)                                                   |
+| grandmasterClockQuality.offsetScaledLogVariance | **0x4E5D**                                                          |
+| grandmasterPriority2                            | Configured priority2 (from ptp4lConf)                               |
+| grandmasterIdentity                             | Local clockId                                                       |
+| stepsRemoved                                    | 0                                                                   |
+| timeSource                                      | **GNSS (0x20)**                                                     |
+| synchronizationUncertain                        | Not supported in this version                                       |
 
 > **Note:** The clockAccuracy value 0x21 (100 ns) is correct for both PRTC-A
-> (100 ns max |TE| per [G.8272](https://www.itu.int/rec/t-rec-g.8272/en)) and PRTC-B (40 ns max |TE| per [G.8272](https://www.itu.int/rec/t-rec-g.8272/en)).
-> Per IEEE 1588-2019 Table 3, clockAccuracy 0x21 means "accurate to within
+> (100 ns max |TE| per [G.8272](#42-normative-references)) and PRTC-B (40 ns max |TE| per [G.8272](#42-normative-references)).
+> Per [IEEE 1588-2019](#42-normative-references) Table 3, clockAccuracy 0x21 means "accurate to within
 > 100 ns" and 0x20 means "accurate to within 25 ns". Since PRTC-B accuracy
 > of 40 ns does not meet the 0x20 threshold, 0x21 is the appropriate value
 > for both PRTC classes. The `stepsRemoved` value of 0 confirms the T-GM is
@@ -474,75 +513,75 @@ All PTP ports on the T-GM operate in the TimeTransmitter role. Announce messages
 
 The T-GM announces holdover parameters. Time remains traceable (the clock is still within specification).
 
-| Information Element                             | Content                                                                              |
-| :---------------------------------------------- | :----------------------------------------------------------------------------------- |
-| sourcePortIdentity                              | Local clockId of the T-GM + PortNumber                                               |
-| leap61                                          | FALSE, or advertise last known leap second event if expected                         |
-| leap59                                          | FALSE, or advertise last known leap second event if expected                         |
-| currentUtcOffsetValid                           | TRUE                                                                                 |
-| ptpTimescale                                    | TRUE                                                                                 |
-| timeTraceable                                   | **TRUE**                                                                             |
-| frequencyTraceable                              | **TRUE**                                                                             |
-| currentUtcOffset                                | Current TAI−UTC offset                                                               |
-| grandmasterPriority1                            | Configured priority1 (128 per [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en)) |
-| grandmasterClockQuality.clockClass              | **7**                                                                                |
-| grandmasterClockQuality.clockAccuracy           | Unknown (0xFE)                                                                       |
-| grandmasterClockQuality.offsetScaledLogVariance | 0xFFFF                                                                               |
-| grandmasterPriority2                            | Configured priority2 (from ptp4lConf)                                                |
-| grandmasterIdentity                             | Local clockId                                                                        |
-| stepsRemoved                                    | 0                                                                                    |
-| timeSource                                      | INT_OSC (0xA0)                                                                       |
-| synchronizationUncertain                        | Not supported in this version                                                        |
+| Information Element                             | Content                                                             |
+| :---------------------------------------------- | :------------------------------------------------------------------ |
+| sourcePortIdentity                              | Local clockId of the T-GM + PortNumber                              |
+| leap61                                          | FALSE, or advertise last known leap second event if expected        |
+| leap59                                          | FALSE, or advertise last known leap second event if expected        |
+| currentUtcOffsetValid                           | TRUE                                                                |
+| ptpTimescale                                    | TRUE                                                                |
+| timeTraceable                                   | **TRUE**                                                            |
+| frequencyTraceable                              | **TRUE**                                                            |
+| currentUtcOffset                                | Current TAI−UTC offset                                              |
+| grandmasterPriority1                            | Configured priority1 (128 per [G.8275.1](#42-normative-references)) |
+| grandmasterClockQuality.clockClass              | **7**                                                               |
+| grandmasterClockQuality.clockAccuracy           | Unknown (0xFE)                                                      |
+| grandmasterClockQuality.offsetScaledLogVariance | 0xFFFF                                                              |
+| grandmasterPriority2                            | Configured priority2 (from ptp4lConf)                               |
+| grandmasterIdentity                             | Local clockId                                                       |
+| stepsRemoved                                    | 0                                                                   |
+| timeSource                                      | INT_OSC (0xA0)                                                      |
+| synchronizationUncertain                        | Not supported in this version                                       |
 
 ### 8.3 Holdover-Out-Of-Spec State Announce Content
 
 The T-GM announces degraded holdover. Time is no longer traceable.
 
-| Information Element                             | Content                                                                              |
-| :---------------------------------------------- | :----------------------------------------------------------------------------------- |
-| sourcePortIdentity                              | Local clockId of the T-GM + PortNumber                                               |
-| leap61                                          | FALSE, or advertise last known leap second event if expected                         |
-| leap59                                          | FALSE, or advertise last known leap second event if expected                         |
-| currentUtcOffsetValid                           | TRUE                                                                                 |
-| ptpTimescale                                    | TRUE                                                                                 |
-| timeTraceable                                   | **FALSE**                                                                            |
-| frequencyTraceable                              | **TRUE**                                                                             |
-| currentUtcOffset                                | Current TAI−UTC offset                                                               |
-| grandmasterPriority1                            | Configured priority1 (128 per [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en)) |
-| grandmasterClockQuality.clockClass              | **140**                                                                              |
-| grandmasterClockQuality.clockAccuracy           | Unknown (0xFE)                                                                       |
-| grandmasterClockQuality.offsetScaledLogVariance | 0xFFFF                                                                               |
-| grandmasterPriority2                            | Configured priority2 (from ptp4lConf)                                                |
-| grandmasterIdentity                             | Local clockId                                                                        |
-| stepsRemoved                                    | 0                                                                                    |
-| timeSource                                      | INT_OSC (0xA0)                                                                       |
-| synchronizationUncertain                        | Not supported in this version                                                        |
+| Information Element                             | Content                                                             |
+| :---------------------------------------------- | :------------------------------------------------------------------ |
+| sourcePortIdentity                              | Local clockId of the T-GM + PortNumber                              |
+| leap61                                          | FALSE, or advertise last known leap second event if expected        |
+| leap59                                          | FALSE, or advertise last known leap second event if expected        |
+| currentUtcOffsetValid                           | TRUE                                                                |
+| ptpTimescale                                    | TRUE                                                                |
+| timeTraceable                                   | **FALSE**                                                           |
+| frequencyTraceable                              | **TRUE**                                                            |
+| currentUtcOffset                                | Current TAI−UTC offset                                              |
+| grandmasterPriority1                            | Configured priority1 (128 per [G.8275.1](#42-normative-references)) |
+| grandmasterClockQuality.clockClass              | **140**                                                             |
+| grandmasterClockQuality.clockAccuracy           | Unknown (0xFE)                                                      |
+| grandmasterClockQuality.offsetScaledLogVariance | 0xFFFF                                                              |
+| grandmasterPriority2                            | Configured priority2 (from ptp4lConf)                               |
+| grandmasterIdentity                             | Local clockId                                                       |
+| stepsRemoved                                    | 0                                                                   |
+| timeSource                                      | INT_OSC (0xA0)                                                      |
+| synchronizationUncertain                        | Not supported in this version                                       |
 
 ### 8.4 Free-Run State Announce Content
 
-| Information Element                             | Content                                                                              |
-| :---------------------------------------------- | :----------------------------------------------------------------------------------- |
-| sourcePortIdentity                              | Local clockId of the T-GM + PortNumber                                               |
-| leap61                                          | FALSE                                                                                |
-| leap59                                          | FALSE                                                                                |
-| currentUtcOffsetValid                           | TRUE                                                                                 |
-| ptpTimescale                                    | TRUE                                                                                 |
-| timeTraceable                                   | **FALSE**                                                                            |
-| frequencyTraceable                              | **FALSE**                                                                            |
-| currentUtcOffset                                | Current TAI−UTC offset                                                               |
-| grandmasterPriority1                            | Configured priority1 (128 per [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en)) |
-| grandmasterClockQuality.clockClass              | **248**                                                                              |
-| grandmasterClockQuality.clockAccuracy           | Unknown (0xFE)                                                                       |
-| grandmasterClockQuality.offsetScaledLogVariance | 0xFFFF                                                                               |
-| grandmasterPriority2                            | Configured priority2 (from ptp4lConf)                                                |
-| grandmasterIdentity                             | Local clockId                                                                        |
-| stepsRemoved                                    | 0                                                                                    |
-| timeSource                                      | INT_OSC (0xA0)                                                                       |
-| synchronizationUncertain                        | Not supported in this version                                                        |
+| Information Element                             | Content                                                             |
+| :---------------------------------------------- | :------------------------------------------------------------------ |
+| sourcePortIdentity                              | Local clockId of the T-GM + PortNumber                              |
+| leap61                                          | FALSE                                                               |
+| leap59                                          | FALSE                                                               |
+| currentUtcOffsetValid                           | TRUE                                                                |
+| ptpTimescale                                    | TRUE                                                                |
+| timeTraceable                                   | **FALSE**                                                           |
+| frequencyTraceable                              | **FALSE**                                                           |
+| currentUtcOffset                                | Current TAI−UTC offset                                              |
+| grandmasterPriority1                            | Configured priority1 (128 per [G.8275.1](#42-normative-references)) |
+| grandmasterClockQuality.clockClass              | **248**                                                             |
+| grandmasterClockQuality.clockAccuracy           | Unknown (0xFE)                                                      |
+| grandmasterClockQuality.offsetScaledLogVariance | 0xFFFF                                                              |
+| grandmasterPriority2                            | Configured priority2 (from ptp4lConf)                               |
+| grandmasterIdentity                             | Local clockId                                                       |
+| stepsRemoved                                    | 0                                                                   |
+| timeSource                                      | INT_OSC (0xA0)                                                      |
+| synchronizationUncertain                        | Not supported in this version                                       |
 
 ### 8.5 Key Differences Across States
 
-The required clockClass values and their corresponding accuracies are derived directly from [ITU-T G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) (2022) Table 2 (Clock class values).
+The required clockClass values and their corresponding accuracies are derived directly from [ITU-T G.8275.1](#42-normative-references) (2022) Table 2 (Clock class values).
 
 | Field                   | Locked        | HO-In-Spec     | HO-Out-Of-Spec | Free-Run       |
 | :---------------------- | :------------ | :------------- | :------------- | :------------- |
@@ -722,8 +761,8 @@ The following metrics must be exposed for T-GM monitoring. All metrics use the `
 
 ### 12.3 Event Delivery Contract
 
-- CloudEvents v1.0 envelope format
-- O-RAN O-Cloud Notification API v2 compliance
+- [CloudEvents v1.0](#43-informative-references) envelope format
+- [O-RAN O-Cloud Notification API v2](#43-informative-references) compliance
 - Resource address hierarchy (/sync/ptp-status/lock-state, etc.)
 - Subscription model (endpoint URI + resource address filter)
 
@@ -737,17 +776,17 @@ The following metrics must be exposed for T-GM monitoring. All metrics use the `
 
 ### 12.5 Events Per State Transition
 
-The following matrix defines which O-RAN O-Cloud Notification API v4.00 events must be generated for each T-GM state transition. Event types and resource addresses are per O-RAN.WG6.O-Cloud Notification API v04.00, section 7.2.3.
+The following matrix defines which [O-RAN O-Cloud Notification API v4.00](#43-informative-references) events must be generated for each T-GM state transition. Event types and resource addresses are per [O-RAN.WG6.O-Cloud Notification API v04.00](#43-informative-references), section 7.2.3.
 
-**O-RAN event types relevant to T-GM:**
+**[O-RAN](#43-informative-references) event types relevant to T-GM:**
 
-| #   | Event Type                                            | Resource Address                        | value_type                            | O-RAN Section |
-| :-- | :---------------------------------------------------- | :-------------------------------------- | :------------------------------------ | :------------ |
-| E1  | `event.sync.ptp-status.ptp-state-change`              | `/sync/ptp-status/lock-state`           | enumeration (LOCKED/HOLDOVER/FREERUN) | 7.2.3.3       |
-| E2  | `event.sync.ptp-status.ptp-clock-class-change`        | `/sync/ptp-status/clock-class`          | metric (Uint8)                        | 7.2.3.10      |
-| E3  | `event.sync.sync-status.os-clock-sync-state-change`   | `/sync/sync-status/os-clock-sync-state` | enumeration (LOCKED/HOLDOVER/FREERUN) | 7.2.3.8       |
-| E4  | `event.sync.sync-status.synchronization-state-change` | `/sync/sync-status/sync-state`          | enumeration (LOCKED/HOLDOVER/FREERUN) | 7.2.3.1       |
-| E5  | `event.sync.gnss-status.gnss-state-change`            | `/sync/gnss-status/gnss-state`          | enumeration (LOCKED/FREERUN)          | 7.2.3.5       |
+| #   | Event Type                                            | Resource Address                        | value_type                            | [O-RAN](#43-informative-references) Section |
+| :-- | :---------------------------------------------------- | :-------------------------------------- | :------------------------------------ | :------------------------------------------ |
+| E1  | `event.sync.ptp-status.ptp-state-change`              | `/sync/ptp-status/lock-state`           | enumeration (LOCKED/HOLDOVER/FREERUN) | 7.2.3.3                                     |
+| E2  | `event.sync.ptp-status.ptp-clock-class-change`        | `/sync/ptp-status/clock-class`          | metric (Uint8)                        | 7.2.3.10                                    |
+| E3  | `event.sync.sync-status.os-clock-sync-state-change`   | `/sync/sync-status/os-clock-sync-state` | enumeration (LOCKED/HOLDOVER/FREERUN) | 7.2.3.8                                     |
+| E4  | `event.sync.sync-status.synchronization-state-change` | `/sync/sync-status/sync-state`          | enumeration (LOCKED/HOLDOVER/FREERUN) | 7.2.3.1                                     |
+| E5  | `event.sync.gnss-status.gnss-state-change`            | `/sync/gnss-status/gnss-state`          | enumeration (LOCKED/FREERUN)          | 7.2.3.5                                     |
 
 **Event generation matrix per T-GM state transition:**
 
@@ -781,47 +820,47 @@ This section defines the behavioral contract between the system and its users: w
 
 The user configures the system through two Kubernetes custom resources: the `PtpConfig` (PTP software configuration and clock behavior) and the `HardwareConfig` (clock chain hardware topology). The intent declaration spans three layers.
 
-#### 13.1.1 Clock Type and IEEE 1588 Profile
+#### 13.1.1 Clock Type and [IEEE 1588](#42-normative-references) Profile
 
-The user declares the desired clock role and the IEEE 1588 PTP profile. The system derives process topology, startup order, announce behavior, and state machine semantics from this declaration.
+The user declares the desired clock role and the [IEEE 1588](#42-normative-references) PTP profile. The system derives process topology, startup order, announce behavior, and state machine semantics from this declaration.
 
-| Parameter    | Values                       | Effect                                                                                                                                       |
-| :----------- | :--------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------- |
-| `clockType`  | `T-GM`                       | Determines the set of processes started, port roles (TimeTransmitter only), announce behavior, and which state machine specification applies |
-| `ptpProfile` | IEEE 1588 profile identifier | Determines transport, delay mechanism, BTCA variant, domain number range, and which PTP parameters are profile-mandated                      |
+| Parameter    | Values                                                   | Effect                                                                                                                                       |
+| :----------- | :------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------- |
+| `clockType`  | `T-GM`                                                   | Determines the set of processes started, port roles (TimeTransmitter only), announce behavior, and which state machine specification applies |
+| `ptpProfile` | [IEEE 1588](#42-normative-references) profile identifier | Determines transport, delay mechanism, BTCA variant, domain number range, and which PTP parameters are profile-mandated                      |
 
 When a profile is designated, certain PTP parameters are fixed by the profile and must not be overridden by the user. The system must reject invalid combinations at admission time with an informative error identifying the violating parameter.
 
-**Profile-Mandated Parameters (Tier 1) — [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en):**
+**Profile-Mandated Parameters (Tier 1) — [G.8275.1](#42-normative-references):**
 
-| Parameter            | Mandated value ([G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en)) | Rationale                                                                                                        |
-| :------------------- | :--------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------- |
-| `network_transport`  | `L2`                                                                   | [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) requires Layer 2 multicast transport                       |
-| `delay_mechanism`    | `E2E`                                                                  | [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) requires end-to-end delay measurement                      |
-| `time_stamping`      | `hardware`                                                             | Software timestamping is insufficient for PRTC accuracy                                                          |
-| `dataset_comparison` | `[G.8275](https://www.itu.int/rec/t-rec-g.8275/en).x`                  | Required for [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) BTCA behavior                                 |
-| `transportSpecific`  | `0x0`                                                                  | [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) uses the default PTP transport specific value              |
-| `priority1`          | `128`                                                                  | [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) alternate BTCA ignores priority1; value must remain at 128 |
-| `clock_type`         | `OC` or `BC` only                                                      | T-GM ports must be either ordinary or boundary clock ports                                                       |
+| Parameter            | Mandated value ([G.8275.1](#42-normative-references)) | Rationale                                                                                       |
+| :------------------- | :---------------------------------------------------- | :---------------------------------------------------------------------------------------------- |
+| `network_transport`  | `L2`                                                  | [G.8275.1](#42-normative-references) requires Layer 2 multicast transport                       |
+| `delay_mechanism`    | `E2E`                                                 | [G.8275.1](#42-normative-references) requires end-to-end delay measurement                      |
+| `time_stamping`      | `hardware`                                            | Software timestamping is insufficient for PRTC accuracy                                         |
+| `dataset_comparison` | `[G.8275](#42-normative-references).x`                | Required for [G.8275.1](#42-normative-references) BTCA behavior                                 |
+| `transportSpecific`  | `0x0`                                                 | [G.8275.1](#42-normative-references) uses the default PTP transport specific value              |
+| `priority1`          | `128`                                                 | [G.8275.1](#42-normative-references) alternate BTCA ignores priority1; value must remain at 128 |
+| `clock_type`         | `OC` or `BC` only                                     | T-GM ports must be either ordinary or boundary clock ports                                      |
 
 **T-GM Operator-Tunable Parameters (Tier 2):**
 
-| Parameter                     | Default     | Range / values        | Notes                                                                               |
-| :---------------------------- | :---------- | :-------------------- | :---------------------------------------------------------------------------------- |
-| `logAnnounceInterval`         | `-3` (8/s)  | `-4` to `0`           | [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) recommends -3                 |
-| `logSyncInterval`             | `-4` (16/s) | `-7` to `-1`          |                                                                                     |
-| `logMinDelayReqInterval`      | `-4`        | `-7` to `-1`          |                                                                                     |
-| `domainNumber`                | `24`        | `24`–`43`             | [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) reserves domain numbers 24–43 |
-| `priority2`                   | `128`       | `0`–`255`             | For multi-GM redundancy ordering                                                    |
-| `MaxInSpecOffset`             | —           | positive integer (ns) | Holdover in-spec / out-of-spec boundary                                             |
-| `LocalMaxHoldoverOffSet`      | —           | positive integer (ns) | Holdover-to-freerun boundary                                                        |
-| `LocalHoldoverTimeout`        | —           | positive integer (s)  | Maximum holdover duration                                                           |
-| `processDowntimeThresholds.*` | `5`         | 0–86400 (s)           | Acceptable process downtime before holdover/freerun events are emitted              |
+| Parameter                     | Default     | Range / values        | Notes                                                                  |
+| :---------------------------- | :---------- | :-------------------- | :--------------------------------------------------------------------- |
+| `logAnnounceInterval`         | `-3` (8/s)  | `-4` to `0`           | [G.8275.1](#42-normative-references) recommends -3                     |
+| `logSyncInterval`             | `-4` (16/s) | `-7` to `-1`          |                                                                        |
+| `logMinDelayReqInterval`      | `-4`        | `-7` to `-1`          |                                                                        |
+| `domainNumber`                | `24`        | `24`–`43`             | [G.8275.1](#42-normative-references) reserves domain numbers 24–43     |
+| `priority2`                   | `128`       | `0`–`255`             | For multi-GM redundancy ordering                                       |
+| `MaxInSpecOffset`             | —           | positive integer (ns) | Holdover in-spec / out-of-spec boundary                                |
+| `LocalMaxHoldoverOffSet`      | —           | positive integer (ns) | Holdover-to-freerun boundary                                           |
+| `LocalHoldoverTimeout`        | —           | positive integer (s)  | Maximum holdover duration                                              |
+| `processDowntimeThresholds.*` | `5`         | 0–86400 (s)           | Acceptable process downtime before holdover/freerun events are emitted |
 
 **Additional Configuration Requirements:**
 
 - **Per-port role assignment:** Each NIC port shall be individually configurable as `masterOnly 1` (time transmitter) or ommitted (no TimeReceivers may be configured for T-GM casee)
-- **DPLL and SyncE parameters:** Reference input priorities and SyncE network option ([ITU-T G.8264](https://www.itu.int/rec/T-REC-G.8264) Option 1 or Option 2) shall be configurable.
+- **DPLL and SyncE parameters:** Reference input priorities and SyncE network option ([ITU-T G.8264](#42-normative-references) Option 1 or Option 2) shall be configurable.
 
 #### 13.1.2 GNSS Configuration
 
@@ -858,20 +897,20 @@ When a `HardwareConfig` is provided, it takes precedence over plugin-derived har
 
 The system provides synchronization state and health information through multiple channels. Each channel serves a different consumer and access pattern.
 
-| Output Channel                        | Content                                                                                     | Consumer                                         | Reference |
-| :------------------------------------ | :------------------------------------------------------------------------------------------ | :----------------------------------------------- | :-------- |
-| **Prometheus metrics**                | Clock state, GNSS status, offsets, DPLL status, interface roles, process health, thresholds | Monitoring dashboards, alerting                  | §11.1     |
-| **CloudEvents / O-RAN notifications** | State transitions (GNSS, DPLL, PTP), clock class changes                                    | Event-driven consumers, O-RAN O-Cloud            | §12       |
-| **Kubernetes Events**                 | Clock state changes, process restarts on the PtpConfig resource                             | `kubectl describe`, cluster event sinks          | §11.2.2   |
-| **PtpConfig.status**                  | Configuration errors (node, condition, diagnostic message)                                  | Kubernetes controllers, operators                | §11.2.1   |
-| **NodePtpDevice.status**              | Discovered PTP devices, hardware info, per-device config status (failed/success)            | Kubernetes controllers, hardware inventory       | §11.2.2   |
-| **HardwareConfig.status**             | Matched nodes, active behavior condition per node                                           | Kubernetes controllers, clock chain verification | §11.2.3   |
-| **Structured logs**                   | State transitions, offset measurements, GNSS fix changes, hardware reconfiguration          | Troubleshooting, audit trail                     | §11.3     |
-| **PTP Announce messages**             | Clock class, clock accuracy, time properties, GM identity                                   | Downstream PTP nodes                             | §8        |
+| Output Channel                                                                                    | Content                                                                                     | Consumer                                                            | Reference |
+| :------------------------------------------------------------------------------------------------ | :------------------------------------------------------------------------------------------ | :------------------------------------------------------------------ | :-------- |
+| **Prometheus metrics**                                                                            | Clock state, GNSS status, offsets, DPLL status, interface roles, process health, thresholds | Monitoring dashboards, alerting                                     | §11.1     |
+| **[CloudEvents](#43-informative-references) / [O-RAN](#43-informative-references) notifications** | State transitions (GNSS, DPLL, PTP), clock class changes                                    | Event-driven consumers, [O-RAN](#43-informative-references) O-Cloud | §12       |
+| **Kubernetes Events**                                                                             | Clock state changes, process restarts on the PtpConfig resource                             | `kubectl describe`, cluster event sinks                             | §11.2.2   |
+| **PtpConfig.status**                                                                              | Configuration errors (node, condition, diagnostic message)                                  | Kubernetes controllers, operators                                   | §11.2.1   |
+| **NodePtpDevice.status**                                                                          | Discovered PTP devices, hardware info, per-device config status (failed/success)            | Kubernetes controllers, hardware inventory                          | §11.2.2   |
+| **HardwareConfig.status**                                                                         | Matched nodes, active behavior condition per node                                           | Kubernetes controllers, clock chain verification                    | §11.2.3   |
+| **Structured logs**                                                                               | State transitions, offset measurements, GNSS fix changes, hardware reconfiguration          | Troubleshooting, audit trail                                        | §11.3     |
+| **PTP Announce messages**                                                                         | Clock class, clock accuracy, time properties, GM identity                                   | Downstream PTP nodes                                                | §8        |
 
 ## 14. Security
 
-1. The system shall support PTP authentication (IEEE 1588 Annex P / NTS) when configured.
+1. The system shall support PTP authentication ([IEEE 1588](#42-normative-references) Annex P / NTS) when configured.
 2. When authentication key material changes, the system shall detect the change and restart affected processes to pick up the new keys.
 3. When GNSS spoofing or jamming is detected by the GNSS hardware, the system shall enter FREERUN.
 
@@ -879,146 +918,154 @@ The system provides synchronization state and health information through multipl
 
 ## 15. Functional Requirements Specification
 
+Functional requirements in this section express **testable product behaviour** derived from internal interpretations of [IEEE 1588](#42-normative-references), [ITU-T G.8275.x](#42-normative-references), [O-RAN](#43-informative-references), and the normative sections (§6–§14) of this document.
+
+**Traceability conventions (§15 only)**
+
+| Column                | Meaning                                                                 | Link target                                                                                      |
+| :-------------------- | :---------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------- |
+| **Spec traceability** | Parent section(s) in this document that define the behaviour under test | Markdown hyperlinks to §6–§14 anchors (e.g. `[§6.4 AllLocked](#64-state-transition-conditions)`) |
+
 ### 15.1 State Machine — Lock Acquisition
 
 #### ID: FUNC-TGM001
 
-| Requirement ID | Traceability                                                       | Requirement text                                                                                                                                                                                                            |
-| :------------- | :----------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FUNC-TGM001-R1 | 6.4 AllLocked                                                      | Given a T-GM is initialised in Free-Run state, when GNSS is acquired and all lock conditions are met (GNSS fix valid, DPLL locked, PHC locked, all offsets within threshold), then the T-GM must transition to Locked state |
-| FUNC-TGM001-R2 | 8.1, [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Table 2 | Upon entering Locked state, Announce messages on all ports must reflect clockClass 6, clockAccuracy 0x21, timeSource GNSS (0x20), timeTraceable TRUE, frequencyTraceable TRUE                                               |
+| Requirement ID | Spec traceability                                                                       | Requirement text                                                                                                                                                                                                            |
+| :------------- | :-------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FUNC-TGM001-R1 | [§6.4 AllLocked](#64-state-transition-conditions)                                       | Given a T-GM is initialised in Free-Run state, when GNSS is acquired and all lock conditions are met (GNSS fix valid, DPLL locked, PHC locked, all offsets within threshold), then the T-GM must transition to Locked state |
+| FUNC-TGM001-R2 | [§8.1](#81-locked-state-announce-content), [G.8275.1](#42-normative-references) Table 2 | Upon entering Locked state, Announce messages on all ports must reflect clockClass 6, clockAccuracy 0x21, timeSource GNSS (0x20), timeTraceable TRUE, frequencyTraceable TRUE                                               |
 
 ### 15.2 State Machine — Holdover Entry on GNSS Loss
 
 #### ID: FUNC-TGM002
 
-| Requirement ID | Traceability                                                       | Requirement text                                                                                                                                                                               |
-| :------------- | :----------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FUNC-TGM002-R1 | 6.4 GNSSLost, 6.5 T3                                               | Given a T-GM is in Locked state, when the GNSS reference is lost and the DPLL enters holdover or locked-holdover-acquired, then the T-GM must transition to Holdover-In-Spec                   |
-| FUNC-TGM002-R2 | 8.2, [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Table 2 | Upon entering Holdover-In-Spec, Announce messages must reflect clockClass 7, clockAccuaracy unknown (0xFE), timeSource internal oscillator (0xA0), timeTraceable TRUE, frequencyTraceable TRUE |
-| FUNC-TGM002-R3 | 7                                                                  | Given a T-GM enters Holdover, it must maintain a unidirectional signal flow without reversing the synchronisation direction                                                                    |
+| Requirement ID | Spec traceability                                                                                 | Requirement text                                                                                                                                                                               |
+| :------------- | :------------------------------------------------------------------------------------------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FUNC-TGM002-R1 | [§6.4 GNSSLost](#64-state-transition-conditions), [T3](#65-state-transition-table)                | Given a T-GM is in Locked state, when the GNSS reference is lost and the DPLL enters holdover or locked-holdover-acquired, then the T-GM must transition to Holdover-In-Spec                   |
+| FUNC-TGM002-R2 | [§8.2](#82-holdover-in-spec-state-announce-content), [G.8275.1](#42-normative-references) Table 2 | Upon entering Holdover-In-Spec, Announce messages must reflect clockClass 7, clockAccuaracy unknown (0xFE), timeSource internal oscillator (0xA0), timeTraceable TRUE, frequencyTraceable TRUE |
+| FUNC-TGM002-R3 | [§7](#7-synchronisation-direction)                                                                | Given a T-GM enters Holdover, it must maintain a unidirectional signal flow without reversing the synchronisation direction                                                                    |
 
 ### 15.3 State Machine — Holdover In-Spec to Out-Of-Spec
 
 #### ID: FUNC-TGM003
 
-| Requirement ID | Traceability                                                       | Requirement text                                                                                                                                                                                          |
-| :------------- | :----------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FUNC-TGM003-R1 | 6.4 Offset-Above-InSpecOffset, 6.5 T6                              | Given a T-GM is in Holdover-In-Spec, when the measured phase offset exceeds `MaxInSpecOffset` or the holdover timer exceeds `LocalHoldoverTimeout`, then the T-GM must transition to Holdover-Out-Of-Spec |
-| FUNC-TGM003-R2 | 8.3, [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Table 2 | Upon entering Holdover-Out-Of-Spec, Announce messages must reflect clockClass 140, clockAccuracy unknown (0xFE), timeSource internal oscillator (0xA0), timeTraceable FALSE, frequencyTraceable TRUE      |
+| Requirement ID | Spec traceability                                                                                     | Requirement text                                                                                                                                                                                          |
+| :------------- | :---------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FUNC-TGM003-R1 | [§6.4 Offset-Above-InSpecOffset](#64-state-transition-conditions), [T6](#65-state-transition-table)   | Given a T-GM is in Holdover-In-Spec, when the measured phase offset exceeds `MaxInSpecOffset` or the holdover timer exceeds `LocalHoldoverTimeout`, then the T-GM must transition to Holdover-Out-Of-Spec |
+| FUNC-TGM003-R2 | [§8.3](#83-holdover-out-of-spec-state-announce-content), [G.8275.1](#42-normative-references) Table 2 | Upon entering Holdover-Out-Of-Spec, Announce messages must reflect clockClass 140, clockAccuracy unknown (0xFE), timeSource internal oscillator (0xA0), timeTraceable FALSE, frequencyTraceable TRUE      |
 
 ### 15.4 State Machine — Holdover to Free-Run
 
 #### ID: FUNC-TGM004
 
-| Requirement ID | Traceability                                                       | Requirement text                                                                                                                                                                          |
-| :------------- | :----------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FUNC-TGM004-R1 | 6.4 Holdover-To-FreeRun, 6.5 T7/T9                                 | Given a T-GM is in any Holdover state, when the measured or estimated phase offset exceeds `LocalMaxHoldoverOffSet`, then the T-GM must transition to Free-Run                            |
-| FUNC-TGM004-R2 | 8.4, [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Table 2 | Upon entering Free-Run, Announce messages must reflect clockClass 248, clockAccuracy unknown (0xFE), timeSource internal oscillator (0xA0), timeTraceable FALSE, frequencyTraceable FALSE |
+| Requirement ID | Spec traceability                                                                                | Requirement text                                                                                                                                                                          |
+| :------------- | :----------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FUNC-TGM004-R1 | [§6.4 Holdover-To-FreeRun](#64-state-transition-conditions), [T7/T9](#65-state-transition-table) | Given a T-GM is in any Holdover state, when the measured or estimated phase offset exceeds `LocalMaxHoldoverOffSet`, then the T-GM must transition to Free-Run                            |
+| FUNC-TGM004-R2 | [§8.4](#84-free-run-state-announce-content), [G.8275.1](#42-normative-references) Table 2        | Upon entering Free-Run, Announce messages must reflect clockClass 248, clockAccuracy unknown (0xFE), timeSource internal oscillator (0xA0), timeTraceable FALSE, frequencyTraceable FALSE |
 
 ### 15.5 State Machine — Re-Lock from Degraded State
 
 #### ID: FUNC-TGM005
 
-| Requirement ID | Traceability                                                       | Requirement text                                                                                                                                                                  |
-| :------------- | :----------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FUNC-TGM005-R1 | 6.4 AllLocked, 6.5 T5/T8                                           | Given a T-GM is in any Holdover or Free-Run state, when GNSS reference is re-acquired and all lock conditions are met per FUNC-TGM001-R1, then the T-GM must transition to Locked |
-| FUNC-TGM005-R2 | 8.1, [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Table 2 | Upon re-lock, Announce messages must be restored to Locked-state parameters (See FUNC-TGM001-R2)                                                                                  |
+| Requirement ID | Spec traceability                                                                       | Requirement text                                                                                                                                                                  |
+| :------------- | :-------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FUNC-TGM005-R1 | [§6.4 AllLocked](#64-state-transition-conditions), [T5/T8](#65-state-transition-table)  | Given a T-GM is in any Holdover or Free-Run state, when GNSS reference is re-acquired and all lock conditions are met per FUNC-TGM001-R1, then the T-GM must transition to Locked |
+| FUNC-TGM005-R2 | [§8.1](#81-locked-state-announce-content), [G.8275.1](#42-normative-references) Table 2 | Upon re-lock, Announce messages must be restored to Locked-state parameters (See FUNC-TGM001-R2)                                                                                  |
 
 ### 15.6 State Machine — Non-GNSS Fault to Free-Run
 
 #### ID: FUNC-TGM006
 
-| Requirement ID | Traceability             | Requirement text                                                                                                                                                                                                                           |
-| :------------- | :----------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FUNC-TGM006-R1 | 6.4 NonGNSSFault, 6.5 T4 | Given a T-GM is in Locked state, when a non-GNSS-loss fault occurs that prevents time traceability (e.g., PHC synchroniser enters FREERUN while DPLL is LOCKED, or a process crash is detected), then the T-GM must transition to Free-Run |
+| Requirement ID | Spec traceability                                                                      | Requirement text                                                                                                                                                                                                                           |
+| :------------- | :------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FUNC-TGM006-R1 | [§6.4 NonGNSSFault](#64-state-transition-conditions), [T4](#65-state-transition-table) | Given a T-GM is in Locked state, when a non-GNSS-loss fault occurs that prevents time traceability (e.g., PHC synchroniser enters FREERUN while DPLL is LOCKED, or a process crash is detected), then the T-GM must transition to Free-Run |
 
 ### 15.7 Initialisation — Clock Type and Initial State
 
 #### ID: FUNC-TGM007
 
-| Requirement ID | Traceability | Requirement text                                                                                                                                                                                       |
-| :------------- | :----------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FUNC-TGM007-R1 | 6.6 step 1   | Given a node configuration is applied, then the system must determine the PTP clock type (T-GM) from the `clockType` field in the PtpConfig resource                                                   |
-| FUNC-TGM007-R2 | 6.6 step 2   | Given the clock type is determined, then processes must be started in the required startup order with generated configurations                                                                         |
-| FUNC-TGM007-R3 | 6.6 step 4   | Given initialisation completes, then the system must enter the Free-Run state unconditionally, regardless of whether GNSS is already available                                                         |
-| FUNC-TGM007-R4 | 6.5 T1       | Given a T-GM has just initialised, when GNSS is already available, then the system must NOT bypass Free-Run — it must progress through the full lock acquisition sequence to reach Locked              |
-| FUNC-TGM007-R5 | 13.1.1       | Given a telecom profile is designated, the system must validate that the user configuration conforms to profile-mandated parameter constraints and reject it at admission time if a violation is found |
+| Requirement ID | Spec traceability                                 | Requirement text                                                                                                                                                                                       |
+| :------------- | :------------------------------------------------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FUNC-TGM007-R1 | [§6.6 step 1](#66-initialisation-behaviour)       | Given a node configuration is applied, then the system must determine the PTP clock type (T-GM) from the `clockType` field in the PtpConfig resource                                                   |
+| FUNC-TGM007-R2 | [§6.6 step 2](#66-initialisation-behaviour)       | Given the clock type is determined, then processes must be started in the required startup order with generated configurations                                                                         |
+| FUNC-TGM007-R3 | [§6.6 step 4](#66-initialisation-behaviour)       | Given initialisation completes, then the system must enter the Free-Run state unconditionally, regardless of whether GNSS is already available                                                         |
+| FUNC-TGM007-R4 | [§6.5 T1](#65-state-transition-table)             | Given a T-GM has just initialised, when GNSS is already available, then the system must NOT bypass Free-Run — it must progress through the full lock acquisition sequence to reach Locked              |
+| FUNC-TGM007-R5 | [§13.1.1](#1311-clock-type-and-ieee-1588-profile) | Given a telecom profile is designated, the system must validate that the user configuration conforms to profile-mandated parameter constraints and reject it at admission time if a violation is found |
 
 ### 15.8 GNSS Initialisation and Configuration
 
 #### ID: FUNC-TGM008
 
-| Requirement ID | Traceability | Requirement text                                                                                                                                                                                                           |
-| :------------- | :----------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FUNC-TGM008-R1 | 13.1.2       | Given a T-GM is initialising its GNSS receiver, it must configure the receiver to track the user-specified constellations (defaulting to GPS + Galileo)                                                                    |
-| FUNC-TGM008-R2 | 13.1.2       | Given a T-GM is initialising its GNSS receiver, if a saved fixed 3D position does not exist or a re-survey is forced, it must initiate a GNSS antenna survey using the configured `surveyDuration` and `surveyMinAccuracy` |
-| FUNC-TGM008-R3 | 13.1.2       | Given a GNSS antenna survey completes successfully, the system must save the surveyed fixed 3D position into the receiver's non-volatile storage to avoid unnecessary re-surveys on subsequent restarts                    |
-| FUNC-TGM008-R4 | 13.1.2       | Given a T-GM is initialising its GNSS receiver, it must configure the receiver to apply the user-supplied `antennaCableDelay` to compensate for coaxial cable propagation delay                                            |
-| FUNC-TGM008-R5 | 13.1.2       | Given a T-GM is initialising its GNSS receiver, if `customCommands` are provided, the system must successfully transmit and apply these raw commands to the receiver                                                       |
+| Requirement ID | Spec traceability                   | Requirement text                                                                                                                                                                                                           |
+| :------------- | :---------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FUNC-TGM008-R1 | [§13.1.2](#1312-gnss-configuration) | Given a T-GM is initialising its GNSS receiver, it must configure the receiver to track the user-specified constellations (defaulting to GPS + Galileo)                                                                    |
+| FUNC-TGM008-R2 | [§13.1.2](#1312-gnss-configuration) | Given a T-GM is initialising its GNSS receiver, if a saved fixed 3D position does not exist or a re-survey is forced, it must initiate a GNSS antenna survey using the configured `surveyDuration` and `surveyMinAccuracy` |
+| FUNC-TGM008-R3 | [§13.1.2](#1312-gnss-configuration) | Given a GNSS antenna survey completes successfully, the system must save the surveyed fixed 3D position into the receiver's non-volatile storage to avoid unnecessary re-surveys on subsequent restarts                    |
+| FUNC-TGM008-R4 | [§13.1.2](#1312-gnss-configuration) | Given a T-GM is initialising its GNSS receiver, it must configure the receiver to apply the user-supplied `antennaCableDelay` to compensate for coaxial cable propagation delay                                            |
+| FUNC-TGM008-R5 | [§13.1.2](#1312-gnss-configuration) | Given a T-GM is initialising its GNSS receiver, if `customCommands` are provided, the system must successfully transmit and apply these raw commands to the receiver                                                       |
 
 ### 15.9 Per-State Announce Content Verification
 
 #### ID: FUNC-TGM009
 
-| Requirement ID | Traceability                                                       | Requirement text                                                                                                                                                                                                        |
-| :------------- | :----------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FUNC-TGM009-R1 | 8.1, [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Table 2 | Given a T-GM is in Locked state, then Announce messages must contain: clockClass=6, clockAccuracy=0x21, offsetScaledLogVariance=0x4E5D, timeSource=GNSS(0x20), timeTraceable=TRUE, frequencyTraceable=TRUE              |
-| FUNC-TGM009-R2 | 8.2, [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Table 2 | Given a T-GM is in Holdover-In-Spec state, then Announce messages must contain: clockClass=7, clockAccuracy=0xFE, offsetScaledLogVariance=0xFFFF, timeSource=INT_OSC(0xA0), timeTraceable=TRUE, frequencyTraceable=TRUE |
-| FUNC-TGM009-R3 | 8.3, [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Table 2 | Given a T-GM is in Holdover-Out-Of-Spec state, then Announce messages must contain: clockClass=140, clockAccuracy=0xFE, timeTraceable=FALSE, frequencyTraceable=TRUE                                                    |
-| FUNC-TGM009-R4 | 8.4, [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Table 2 | Given a T-GM is in Free-Run state, then Announce messages must contain: clockClass=248, clockAccuracy=0xFE, timeTraceable=FALSE, frequencyTraceable=FALSE                                                               |
-| FUNC-TGM009-R5 | 8.5                                                                | Given a T-GM is in any state, then `currentUtcOffset` must contain the correct TAI−UTC offset and `currentUtcOffsetValid` must be TRUE                                                                                  |
-| FUNC-TGM009-R6 | 8.6, 6.7                                                           | Given a T-GM transitions between any two states, then Announce messages on all ports must reflect the new state within one Announce interval                                                                            |
+| Requirement ID | Spec traceability                                                                                     | Requirement text                                                                                                                                                                                                        |
+| :------------- | :---------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FUNC-TGM009-R1 | [§8.1](#81-locked-state-announce-content), [G.8275.1](#42-normative-references) Table 2               | Given a T-GM is in Locked state, then Announce messages must contain: clockClass=6, clockAccuracy=0x21, offsetScaledLogVariance=0x4E5D, timeSource=GNSS(0x20), timeTraceable=TRUE, frequencyTraceable=TRUE              |
+| FUNC-TGM009-R2 | [§8.2](#82-holdover-in-spec-state-announce-content), [G.8275.1](#42-normative-references) Table 2     | Given a T-GM is in Holdover-In-Spec state, then Announce messages must contain: clockClass=7, clockAccuracy=0xFE, offsetScaledLogVariance=0xFFFF, timeSource=INT_OSC(0xA0), timeTraceable=TRUE, frequencyTraceable=TRUE |
+| FUNC-TGM009-R3 | [§8.3](#83-holdover-out-of-spec-state-announce-content), [G.8275.1](#42-normative-references) Table 2 | Given a T-GM is in Holdover-Out-Of-Spec state, then Announce messages must contain: clockClass=140, clockAccuracy=0xFE, timeTraceable=FALSE, frequencyTraceable=TRUE                                                    |
+| FUNC-TGM009-R4 | [§8.4](#84-free-run-state-announce-content), [G.8275.1](#42-normative-references) Table 2             | Given a T-GM is in Free-Run state, then Announce messages must contain: clockClass=248, clockAccuracy=0xFE, timeTraceable=FALSE, frequencyTraceable=FALSE                                                               |
+| FUNC-TGM009-R5 | [§8.5](#85-key-differences-across-states)                                                             | Given a T-GM is in any state, then `currentUtcOffset` must contain the correct TAI−UTC offset and `currentUtcOffsetValid` must be TRUE                                                                                  |
+| FUNC-TGM009-R6 | [§8.6](#86-announce-update-timing), [§6.7](#67-general-timing-constraints)                            | Given a T-GM transitions between any two states, then Announce messages on all ports must reflect the new state within one Announce interval                                                                            |
 
 ### 15.10 Events — State Change Notification
 
 #### ID: FUNC-TGM010
 
-| Requirement ID | Traceability | Requirement text                                                                                                                                                                                                                     |
-| :------------- | :----------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FUNC-TGM010-R1 | 12.5, 6.7    | Given a monitoring system is subscribed to T-GM state events, when the T-GM transitions between any two states, then a CloudEvents-formatted `event.sync.ptp-status.ptp-state-change` notification must be published within 1 second |
-| FUNC-TGM010-R2 | 12.2         | The event must contain the new state, previous state, and relevant metric values                                                                                                                                                     |
-| FUNC-TGM010-R3 | 12.5, 6.7    | Given the T-GM clock class changes, then an `event.sync.ptp-status.ptp-clock-class-change` event must be published within 1 second                                                                                                   |
-| FUNC-TGM010-R4 | 12.5, 6.7    | Given the GNSS fix state changes, then an `event.sync.gnss-status.gnss-state-change` event must be published within 1 second                                                                                                         |
-| FUNC-TGM010-R5 | 12.2         | Given the T-GM is in a stable state, then state change events must not be published periodically, but only edge-triggered upon actual state or value transition                                                                      |
+| Requirement ID | Spec traceability                                                                 | Requirement text                                                                                                                                                                                                                     |
+| :------------- | :-------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FUNC-TGM010-R1 | [§12.5](#125-events-per-state-transition), [§6.7](#67-general-timing-constraints) | Given a monitoring system is subscribed to T-GM state events, when the T-GM transitions between any two states, then a CloudEvents-formatted `event.sync.ptp-status.ptp-state-change` notification must be published within 1 second |
+| FUNC-TGM010-R2 | [§12.2](#122-event-generation-rules)                                              | The event must contain the new state, previous state, and relevant metric values                                                                                                                                                     |
+| FUNC-TGM010-R3 | [§12.5](#125-events-per-state-transition), [§6.7](#67-general-timing-constraints) | Given the T-GM clock class changes, then an `event.sync.ptp-status.ptp-clock-class-change` event must be published within 1 second                                                                                                   |
+| FUNC-TGM010-R4 | [§12.5](#125-events-per-state-transition), [§6.7](#67-general-timing-constraints) | Given the GNSS fix state changes, then an `event.sync.gnss-status.gnss-state-change` event must be published within 1 second                                                                                                         |
+| FUNC-TGM010-R5 | [§12.2](#122-event-generation-rules)                                              | Given the T-GM is in a stable state, then state change events must not be published periodically, but only edge-triggered upon actual state or value transition                                                                      |
 
 ### 15.11 Process Orchestration — Startup Order and Lifecycle
 
 #### ID: FUNC-TGM011
 
-| Requirement ID | Traceability | Requirement text                                                                                                                                                           |
-| :------------- | :----------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FUNC-TGM011-R1 | 9.2 step 1–2 | Given a T-GM configuration is applied, then the GNSS monitor and DPLL monitor must be the first processes started                                                          |
-| FUNC-TGM011-R2 | 9.2 step 3   | Given GNSS and DPLL monitors are running, then ts2phc must be started next                                                                                                 |
-| FUNC-TGM011-R3 | 9.2 step 4   | Given ts2phc is running, then ptp4l must be started                                                                                                                        |
-| FUNC-TGM011-R4 | 9.2 step 5   | Given ts2phc has not yet reported LOCKED (s2), then phc2sys must NOT be started                                                                                            |
-| FUNC-TGM011-R5 | 9.3          | Given a process exits unexpectedly, then it must be restarted automatically, and other healthy processes must NOT be stopped and restarted solely to re-establish ordering |
-| FUNC-TGM011-R6 | 9.3          | Given a configuration change occurs, then all processes must be stopped and restarted in the correct startup order                                                         |
+| Requirement ID | Spec traceability                               | Requirement text                                                                                                                                                           |
+| :------------- | :---------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FUNC-TGM011-R1 | [§9.2 step 1–2](#92-t-gm-process-startup-order) | Given a T-GM configuration is applied, then the GNSS monitor and DPLL monitor must be the first processes started                                                          |
+| FUNC-TGM011-R2 | [§9.2 step 3](#92-t-gm-process-startup-order)   | Given GNSS and DPLL monitors are running, then ts2phc must be started next                                                                                                 |
+| FUNC-TGM011-R3 | [§9.2 step 4](#92-t-gm-process-startup-order)   | Given ts2phc is running, then ptp4l must be started                                                                                                                        |
+| FUNC-TGM011-R4 | [§9.2 step 5](#92-t-gm-process-startup-order)   | Given ts2phc has not yet reported LOCKED (s2), then phc2sys must NOT be started                                                                                            |
+| FUNC-TGM011-R5 | [§9.3](#93-process-lifecycle)                   | Given a process exits unexpectedly, then it must be restarted automatically, and other healthy processes must NOT be stopped and restarted solely to re-establish ordering |
+| FUNC-TGM011-R6 | [§9.3](#93-process-lifecycle)                   | Given a configuration change occurs, then all processes must be stopped and restarted in the correct startup order                                                         |
 
 ### 15.12 Process Failure — T-GM Behaviour
 
 #### ID: FUNC-TGM012
 
-| Requirement ID | Traceability | Requirement text                                                                                                                                        |
-| :------------- | :----------- | :------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| FUNC-TGM012-R1 | 9.5, ts2phc  | Given ts2phc crashes and restarts within `processDowntimeThresholds.ts2phc`, then no state-change events must be emitted                                |
-| FUNC-TGM012-R2 | 9.5, ts2phc  | Given ts2phc crashes and remains down beyond `processDowntimeThresholds.ts2phc`, then the system must enter holdover and emit clock class change events |
-| FUNC-TGM012-R3 | 9.5, ptp4l   | Given ptp4l crashes, then downstream clients lose synchronisation; clock class change events must be emitted if downtime exceeds the threshold          |
-| FUNC-TGM012-R4 | 9.5, phc2sys | Given phc2sys crashes and restarts within its threshold, then E3 (os-clock-sync-state-change) must NOT toggle LOCKED→FREERUN→LOCKED                     |
-| FUNC-TGM012-R5 | 9.3          | Given any timing process crashes, then it must be automatically restarted and `openshift_ptp_process_restart_count` must be incremented                 |
+| Requirement ID | Spec traceability                                     | Requirement text                                                                                                                                        |
+| :------------- | :---------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| FUNC-TGM012-R1 | [§9.5 ts2phc](#95-t-gm-behaviour-on-process-failure)  | Given ts2phc crashes and restarts within `processDowntimeThresholds.ts2phc`, then no state-change events must be emitted                                |
+| FUNC-TGM012-R2 | [§9.5 ts2phc](#95-t-gm-behaviour-on-process-failure)  | Given ts2phc crashes and remains down beyond `processDowntimeThresholds.ts2phc`, then the system must enter holdover and emit clock class change events |
+| FUNC-TGM012-R3 | [§9.5 ptp4l](#95-t-gm-behaviour-on-process-failure)   | Given ptp4l crashes, then downstream clients lose synchronisation; clock class change events must be emitted if downtime exceeds the threshold          |
+| FUNC-TGM012-R4 | [§9.5 phc2sys](#95-t-gm-behaviour-on-process-failure) | Given phc2sys crashes and restarts within its threshold, then E3 (os-clock-sync-state-change) must NOT toggle LOCKED→FREERUN→LOCKED                     |
+| FUNC-TGM012-R5 | [§9.3](#93-process-lifecycle)                         | Given any timing process crashes, then it must be automatically restarted and `openshift_ptp_process_restart_count` must be incremented                 |
 
 ### 15.13 Observability — Metrics Emission
 
 #### ID: FUNC-TGM013
 
-| Requirement ID | Traceability          | Requirement text                                                                                                                                                       |
-| :------------- | :-------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FUNC-TGM013-R1 | 11.1.1 clock_state    | Given a T-GM is running, then `openshift_ptp_clock_state` must be emitted per interface and per process with values 0=FREERUN, 1=LOCKED, 2=HOLDOVER                    |
-| FUNC-TGM013-R2 | 11.1.1 clock_class    | Given a T-GM is running, then `openshift_ptp_clock_class` must be emitted with the current clock class value and updated within 1 second of a change                   |
-| FUNC-TGM013-R3 | 11.1.2 offset_ns      | Given a T-GM is running, then `openshift_ptp_offset_ns` must be emitted per measurement point (ts2phc, GNSS, DPLL, phc2sys)                                            |
-| FUNC-TGM013-R4 | 11.1.4 interface_role | Given a T-GM is running, then all PTP ports must report `openshift_ptp_interface_role` = 2 (TT/MASTER)                                                                 |
-| FUNC-TGM013-R5 | 11.1.5 process_status | Given a T-GM is running, then `openshift_ptp_process_status` (0=DOWN, 1=UP) and `openshift_ptp_process_restart_count` must be emitted per managed process              |
-| FUNC-TGM013-R6 | 10.4, 11.1.3          | Given a T-GM has GNSS and DPLL subsystems, then GNSS fix state, GNSS offset, DPLL lock state, and DPLL phase offset metrics must be published at least once per second |
+| Requirement ID | Spec traceability                                                 | Requirement text                                                                                                                                                       |
+| :------------- | :---------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FUNC-TGM013-R1 | [§11.1.1 clock_state](#1111-clock-state-and-class)                | Given a T-GM is running, then `openshift_ptp_clock_state` must be emitted per interface and per process with values 0=FREERUN, 1=LOCKED, 2=HOLDOVER                    |
+| FUNC-TGM013-R2 | [§11.1.1 clock_class](#1111-clock-state-and-class)                | Given a T-GM is running, then `openshift_ptp_clock_class` must be emitted with the current clock class value and updated within 1 second of a change                   |
+| FUNC-TGM013-R3 | [§11.1.2 offset_ns](#1112-offset-and-delay)                       | Given a T-GM is running, then `openshift_ptp_offset_ns` must be emitted per measurement point (ts2phc, GNSS, DPLL, phc2sys)                                            |
+| FUNC-TGM013-R4 | [§11.1.4 interface_role](#1114-interface-role)                    | Given a T-GM is running, then all PTP ports must report `openshift_ptp_interface_role` = 2 (TT/MASTER)                                                                 |
+| FUNC-TGM013-R5 | [§11.1.5 process_status](#1115-process-health)                    | Given a T-GM is running, then `openshift_ptp_process_status` (0=DOWN, 1=UP) and `openshift_ptp_process_restart_count` must be emitted per managed process              |
+| FUNC-TGM013-R6 | [§10.4](#104-phc-status-monitoring), [§11.1.3](#1113-dpll-status) | Given a T-GM has GNSS and DPLL subsystems, then GNSS fix state, GNSS offset, DPLL lock state, and DPLL phase offset metrics must be published at least once per second |
 
 ---
 
@@ -1026,74 +1073,66 @@ The system provides synchronization state and health information through multipl
 
 #### ID: FUNC-TGM014
 
-| Requirement ID | Traceability | Requirement text                                                                                                                                                       |
-| :------------- | :----------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FUNC-TGM014-R1 | 5.3          | Given SyncE is configured, the T-GM must distribute frequency from the frequency-locked oscillator to the Ethernet PHY on all configured SyncE ports                   |
-| FUNC-TGM014-R2 | 5.3          | Given SyncE is configured, the ESMC protocol must advertise QL-PRC (or equivalent) when the T-GM is LOCKED, a degraded QL when in HOLDOVER, and QL-DNU when in FREERUN |
-| FUNC-TGM014-R3 | 12.5, 6.7    | Given SyncE is configured, when the SyncE clock quality or state changes, the system must publish `event.sync.synce-status.*` events within 1 second                   |
+| Requirement ID | Spec traceability                                                                 | Requirement text                                                                                                                                                       |
+| :------------- | :-------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FUNC-TGM014-R1 | [§5.3](#53-synce-synchronous-ethernet-role)                                       | Given SyncE is configured, the T-GM must distribute frequency from the frequency-locked oscillator to the Ethernet PHY on all configured SyncE ports                   |
+| FUNC-TGM014-R2 | [§5.3](#53-synce-synchronous-ethernet-role)                                       | Given SyncE is configured, the ESMC protocol must advertise QL-PRC (or equivalent) when the T-GM is LOCKED, a degraded QL when in HOLDOVER, and QL-DNU when in FREERUN |
+| FUNC-TGM014-R3 | [§12.5](#125-events-per-state-transition), [§6.7](#67-general-timing-constraints) | Given SyncE is configured, when the SyncE clock quality or state changes, the system must publish `event.sync.synce-status.*` events within 1 second                   |
 
 ### 15.15 Security and Authentication
 
 #### ID: FUNC-TGM015
 
-| Requirement ID | Traceability | Requirement text                                                                                                                                                        |
-| :------------- | :----------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FUNC-TGM015-R1 | 14           | Given PTP authentication (IEEE 1588 Annex P / NTS) is configured, the system must append authentication TLVs to transmitted PTP messages and validate incoming messages |
-| FUNC-TGM015-R2 | 14           | Given authentication key material is updated, the system must detect the change and restart affected processes without requiring a full pod restart                     |
-| FUNC-TGM015-R3 | 14           | Given the GNSS hardware detects spoofing or jamming, the system must immediately force the clock state manager to evaluate GNSS as FREERUN                              |
+| Requirement ID | Spec traceability   | Requirement text                                                                                                                                                                                    |
+| :------------- | :------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FUNC-TGM015-R1 | [§14](#14-security) | Given PTP authentication ([IEEE 1588](#42-normative-references) Annex P / NTS) is configured, the system must append authentication TLVs to transmitted PTP messages and validate incoming messages |
+| FUNC-TGM015-R2 | [§14](#14-security) | Given authentication key material is updated, the system must detect the change and restart affected processes without requiring a full pod restart                                                 |
+| FUNC-TGM015-R3 | [§14](#14-security) | Given the GNSS hardware detects spoofing or jamming, the system must immediately force the clock state manager to evaluate GNSS as FREERUN                                                          |
 
 ### 15.16 Drift Monitoring and Re-Survey
 
 #### ID: FUNC-TGM016
 
-| Requirement ID | Traceability | Requirement text                                                                                                                                                  |
-| :------------- | :----------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FUNC-TGM016-R1 | 13.1.2       | Given the GNSS receiver has transitioned into fixed-position mode, the system must monitor for position drift                                                     |
-| FUNC-TGM016-R2 | 13.1.2       | Given position drift exceeds the configured `surveyMinAccuracy`, the system must restart the GNSS antenna survey procedure to reestablish a new fixed 3D position |
+| Requirement ID | Spec traceability                   | Requirement text                                                                                                                                                  |
+| :------------- | :---------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FUNC-TGM016-R1 | [§13.1.2](#1312-gnss-configuration) | Given the GNSS receiver has transitioned into fixed-position mode, the system must monitor for position drift                                                     |
+| FUNC-TGM016-R2 | [§13.1.2](#1312-gnss-configuration) | Given position drift exceeds the configured `surveyMinAccuracy`, the system must restart the GNSS antenna survey procedure to reestablish a new fixed 3D position |
 
 ## 16. Performance Requirements Specification
 
-### 16.1 [G.8272](https://www.itu.int/rec/t-rec-g.8272/en) PRTC Time Error
+Performance requirements in this section trace to the relevant ITU-T recommendation clause or table ([G.8272](#42-normative-references) for PRTC time error, [G.8275.1](#42-normative-references) for message rates), or to the internal holdover model defined in §6.8.
 
-[**Source: Rec. ITU-T G.8272/Y.1367 (11/2018)**](https://www.itu.int/rec/T-REC-G.8272/en)
+**Traceability conventions (§16 only)**
 
-When in the LOCKED state, the T-GM must meet the time error limits of a Primary Reference Time Clock (PRTC) as defined in [ITU-T G.8272](https://www.itu.int/rec/t-rec-g.8272/en).
+| Column                     | Meaning                                                                                   | Link target                                                                                             |
+| :------------------------- | :---------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------ |
+| **Standards traceability** | Normative reference clause/table, or internal section, that defines the performance limit | Hyperlinks to [§4.2 Normative References](#42-normative-references) or to the relevant internal section |
 
-| Requirement ID                                                                                                                                                                        | Traceability                                                          | Requirement text                                                                                                                                  |
-| :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :-------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------ |
-| PERF-TGM001-R1                                                                                                                                                                        | [G.8272](https://www.itu.int/rec/t-rec-g.8272/en) Section 6.1, PRTC-A | Maximum absolute time error must not exceed ±100 ns relative to a recognised time reference (e.g., UTC via GNSS)                                  |
-| PERF-TGM001-R2                                                                                                                                                                        | [G.8272](https://www.itu.int/rec/t-rec-g.8272/en) Section 6.2, PRTC-B | Maximum absolute time error must not exceed ±40 ns relative to a recognised time reference (where PRTC-B is supported by the hardware)            |
-| PERF-TGM001-R3                                                                                                                                                                        | [G.8272](https://www.itu.int/rec/t-rec-g.8272/en), general            | The specific PRTC class supported (A or B) depends on the hardware platform. The system must be configurable to declare which PRTC class it meets |
-| NOTE. The locked-mode offset between the PHC and the GNSS 1PPS reference, as measured by the PHC synchroniser, must remain within the configured offset threshold (default: ±100 ns). |                                                                       |                                                                                                                                                   |
+### 16.1 [G.8272](#42-normative-references) PRTC Time Error
+
+[**Source: Rec. ITU-T G.8272/Y.1367 (11/2018)**](#42-normative-references)
+
+When in the LOCKED state, the T-GM must meet the time error limits of a Primary Reference Time Clock (PRTC) as defined in [ITU-T G.8272](#42-normative-references).
+
+| Requirement ID                                                                                                                                                                        | Standards traceability                           | Requirement text                                                                                                                                  |
+| :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :----------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------ |
+| PERF-TGM001-R1                                                                                                                                                                        | [G.8272 §6.1](#42-normative-references) (PRTC-A) | Maximum absolute time error must not exceed ±100 ns relative to a recognised time reference (e.g., UTC via GNSS)                                  |
+| PERF-TGM001-R2                                                                                                                                                                        | [G.8272 §6.2](#42-normative-references) (PRTC-B) | Maximum absolute time error must not exceed ±40 ns relative to a recognised time reference (where PRTC-B is supported by the hardware)            |
+| PERF-TGM001-R3                                                                                                                                                                        | [G.8272](#42-normative-references) (general)     | The specific PRTC class supported (A or B) depends on the hardware platform. The system must be configurable to declare which PRTC class it meets |
+| NOTE. The locked-mode offset between the PHC and the GNSS 1PPS reference, as measured by the PHC synchroniser, must remain within the configured offset threshold (default: ±100 ns). |                                                  |                                                                                                                                                   |
 
 ### 16.2 Holdover Performance
 
-| Requirement ID | Traceability       | Requirement text                                                                                                                                                                                                                                                       |
-| :------------- | :----------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| PERF-TGM002-R1 | 6.8 Holdover Model | During holdover (in-spec), the clock must maintain time error within `MaxInSpecOffset` from the last known good reference                                                                                                                                              |
-| PERF-TGM002-R2 | 6.8 Holdover Model | The actual holdover performance (slope of time error drift) depends on the hardware oscillator quality. The system must expose sufficient observability (offset metrics, holdover duration) to allow operators to verify compliance with their deployment requirements |
+| Requirement ID | Standards traceability                                                 | Requirement text                                                                                                                                                                                                                                                       |
+| :------------- | :--------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PERF-TGM002-R1 | [§6.8 Holdover Model](#68-holdover-model-and-configuration-parameters) | During holdover (in-spec), the clock must maintain time error within `MaxInSpecOffset` from the last known good reference                                                                                                                                              |
+| PERF-TGM002-R2 | [§6.8 Holdover Model](#68-holdover-model-and-configuration-parameters) | The actual holdover performance (slope of time error drift) depends on the hardware oscillator quality. The system must expose sufficient observability (offset metrics, holdover duration) to allow operators to verify compliance with their deployment requirements |
 
 ### 16.3 Timing Message Rates
 
-| Requirement ID | Traceability                                                      | Requirement text                                                                                                                                                                                                |
-| :------------- | :---------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| PERF-TGM003-R1 | [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Section 6.2 | The PTP engine must transmit Sync messages at the configured rate. Per [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en), the default rate is 16 messages per second (logSyncInterval = −4) per port        |
-| PERF-TGM003-R2 | [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) Section 6.2 | The PTP engine must transmit Announce messages at the configured rate. Per [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en), the default rate is 8 messages per second (logAnnounceInterval = −3) per port |
-| PERF-TGM003-R3 | 10.4                                                              | The PHC synchroniser must update its offset measurement at least once per second                                                                                                                                |
-| PERF-TGM003-R4 | 13.1.1                                                            | The PTP engine must respond to Delay_Req messages from downstream clients per the end-to-end delay mechanism mandated by [G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en)                                  |
-
----
-
-## 17. References
-
-- [ITU-T G.8272](https://www.itu.int/rec/t-rec-g.8272/en) — Timing characteristics of primary reference time clocks (PRTC-A, PRTC-B)
-- [ITU-T G.8272.1](https://www.itu.int/rec/t-rec-g.8272.1/en) — Timing characteristics of enhanced primary reference time clocks (ePRTC)
-- [ITU-T G.8273.2](https://www.itu.int/rec/T-REC-G.8273.2/en) — T-BC/T-TSC timing characteristics
-- [ITU-T G.8275](https://www.itu.int/rec/t-rec-g.8275/en) — Framework and requirements for packet-based frequency, phase, and time distribution
-- [ITU-T G.8275.1](https://www.itu.int/rec/t-rec-g.8275.1/en) — PTP telecom profile for phase/time synchronisation with full timing support from the network
-- [ITU-T G.8262](https://www.itu.int/rec/t-rec-g.8262) — Timing characteristics of synchronous equipment clocks (EEC)
-- [ITU-T G.8264](https://www.itu.int/rec/T-REC-G.8264) — Distribution of timing via Ethernet networks (ESMC / SyncE)
-- [ITU-T G.811](https://www.itu.int/rec/t-rec-g.811) — Primary Reference Clock
-- IEEE 1588-2019 — Precision Time Protocol
-- O-RAN O-Cloud Notification API v2
-- CloudEvents Specification v1.0
+| Requirement ID | Standards traceability                            | Requirement text                                                                                                                                                                               |
+| :------------- | :------------------------------------------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PERF-TGM003-R1 | [G.8275.1 §6.2](#42-normative-references)         | The PTP engine must transmit Sync messages at the configured rate. Per [G.8275.1](#42-normative-references), the default rate is 16 messages per second (logSyncInterval = −4) per port        |
+| PERF-TGM003-R2 | [G.8275.1 §6.2](#42-normative-references)         | The PTP engine must transmit Announce messages at the configured rate. Per [G.8275.1](#42-normative-references), the default rate is 8 messages per second (logAnnounceInterval = −3) per port |
+| PERF-TGM003-R3 | [§10.4](#104-phc-status-monitoring)               | The PHC synchroniser must update its offset measurement at least once per second                                                                                                               |
+| PERF-TGM003-R4 | [§13.1.1](#1311-clock-type-and-ieee-1588-profile) | The PTP engine must respond to Delay_Req messages from downstream clients per the end-to-end delay mechanism mandated by [G.8275.1](#42-normative-references)                                  |

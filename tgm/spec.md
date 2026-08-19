@@ -931,177 +931,138 @@ Functional requirements in this section express **testable product behaviour** d
 | :-------------------- | :---------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------- |
 | **Spec traceability** | Parent section(s) in this document that define the behaviour under test | Markdown hyperlinks to §6–§14 anchors (e.g. `[§6.4 AllLocked](#64-state-transition-conditions)`) |
 
-### 15.1 State Machine — Lock Acquisition
+### 15.1 State Machine — Transitions
 
 #### ID: FUNC-TGM001
 
-| Requirement ID | Spec traceability                                                                       | Requirement text                                                                                                                                                                                                            |
-| :------------- | :-------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FUNC-TGM001-R1 | [§6.4 AllLocked](#64-state-transition-conditions)                                       | Given a T-GM is initialised in Free-Run state, when GNSS is acquired and all lock conditions are met (GNSS fix valid, DPLL locked, PHC locked, all offsets within threshold), then the T-GM must transition to Locked state |
-| FUNC-TGM001-R2 | [§8.1](#81-locked-state-announce-content), [G.8275.1](#42-normative-references) Table 2 | Upon entering Locked state, Announce messages on all ports must reflect clockClass 6, clockAccuracy 0x21, timeSource GNSS (0x20), timeTraceable TRUE, frequencyTraceable TRUE                                               |
+| Requirement ID | Spec traceability                                                                                   | Requirement text                                                                                                                                                                                                                                |
+| :------------- | :-------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FUNC-TGM001-R1 | [§6.4 AllLocked](#64-state-transition-conditions)                                                   | Given a T-GM is initialised in Free-Run state, when GNSS is acquired and all lock conditions are met (GNSS fix valid, DPLL locked, PHC locked, all offsets within threshold), then the T-GM must transition to Locked state                     |
+| FUNC-TGM001-R2 | [§6.4 GNSSLost](#64-state-transition-conditions), [T3](#65-state-transition-table)                  | Given a T-GM is in Locked state, when the GNSS reference is lost and the DPLL enters holdover or locked-holdover-acquired, then the T-GM must transition to Holdover-In-Spec                                                                    |
+| FUNC-TGM001-R3 | [§6.4 Offset-Above-InSpecOffset](#64-state-transition-conditions), [T6](#65-state-transition-table) | Given a T-GM is in Holdover-In-Spec, when the measured phase offset exceeds `MaxInSpecOffset` or the holdover timer exceeds `LocalHoldoverTimeout`, then the T-GM must transition to Holdover-Out-Of-Spec                                       |
+| FUNC-TGM001-R4 | [§6.4 Holdover-To-FreeRun](#64-state-transition-conditions), [T7/T9](#65-state-transition-table)    | Given a T-GM is in any Holdover state, when the measured or estimated phase offset exceeds `LocalMaxHoldoverOffSet`, then the T-GM must transition to Free-Run                                                                                  |
+| FUNC-TGM001-R5 | [§6.4 AllLocked](#64-state-transition-conditions), [T5/T8](#65-state-transition-table)              | Given a T-GM is in any Holdover or Free-Run state, when GNSS reference is re-acquired and all lock conditions are met per FUNC-TGM001-R1, then the T-GM must transition to Locked                                                               |
+| FUNC-TGM001-R6 | [§6.4 NonGNSSFault](#64-state-transition-conditions), [T4](#65-state-transition-table)              | Given a T-GM is in Locked state, when a non-GNSS-loss fault occurs that prevents time traceability (e.g., PHC synchroniser enters FREERUN while DPLL is LOCKED, or a process crash is detected), then the T-GM must transition to Free-Run      |
+| FUNC-TGM001-R7 | [§7](#7-synchronisation-direction)                                                                  | Given a T-GM enters Holdover, it must maintain a unidirectional signal flow without reversing the synchronisation direction                                                                                                                     |
 
-### 15.2 State Machine — Holdover Entry on GNSS Loss
+### 15.2 Initialisation — Clock Type and Initial State
 
 #### ID: FUNC-TGM002
 
-| Requirement ID | Spec traceability                                                                                 | Requirement text                                                                                                                                                                               |
-| :------------- | :------------------------------------------------------------------------------------------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FUNC-TGM002-R1 | [§6.4 GNSSLost](#64-state-transition-conditions), [T3](#65-state-transition-table)                | Given a T-GM is in Locked state, when the GNSS reference is lost and the DPLL enters holdover or locked-holdover-acquired, then the T-GM must transition to Holdover-In-Spec                   |
-| FUNC-TGM002-R2 | [§8.2](#82-holdover-in-spec-state-announce-content), [G.8275.1](#42-normative-references) Table 2 | Upon entering Holdover-In-Spec, Announce messages must reflect clockClass 7, clockAccuaracy unknown (0xFE), timeSource internal oscillator (0xA0), timeTraceable TRUE, frequencyTraceable TRUE |
-| FUNC-TGM002-R3 | [§7](#7-synchronisation-direction)                                                                | Given a T-GM enters Holdover, it must maintain a unidirectional signal flow without reversing the synchronisation direction                                                                    |
+| Requirement ID | Spec traceability                                 | Requirement text                                                                                                                                                                                       |
+| :------------- | :------------------------------------------------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FUNC-TGM002-R1 | [§6.6 step 1](#66-initialisation-behaviour)       | Given a node configuration is applied, then the system must determine the PTP clock type (T-GM) from the `clockType` field in the PtpConfig resource                                                   |
+| FUNC-TGM002-R2 | [§6.6 step 2](#66-initialisation-behaviour)       | Given the clock type is determined, then processes must be started in the required startup order with generated configurations                                                                         |
+| FUNC-TGM002-R3 | [§6.6 step 4](#66-initialisation-behaviour)       | Given initialisation completes, then the system must enter the Free-Run state unconditionally, regardless of whether GNSS is already available                                                         |
+| FUNC-TGM002-R4 | [§6.5 T1](#65-state-transition-table)             | Given a T-GM has just initialised, when GNSS is already available, then the system must NOT bypass Free-Run — it must progress through the full lock acquisition sequence to reach Locked              |
+| FUNC-TGM002-R5 | [§13.1.1](#1311-clock-type-and-ieee-1588-profile) | Given a telecom profile is designated, the system must validate that the user configuration conforms to profile-mandated parameter constraints and reject it at admission time if a violation is found |
 
-### 15.3 State Machine — Holdover In-Spec to Out-Of-Spec
+### 15.3 GNSS Initialisation and Configuration
 
 #### ID: FUNC-TGM003
 
-| Requirement ID | Spec traceability                                                                                     | Requirement text                                                                                                                                                                                          |
-| :------------- | :---------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FUNC-TGM003-R1 | [§6.4 Offset-Above-InSpecOffset](#64-state-transition-conditions), [T6](#65-state-transition-table)   | Given a T-GM is in Holdover-In-Spec, when the measured phase offset exceeds `MaxInSpecOffset` or the holdover timer exceeds `LocalHoldoverTimeout`, then the T-GM must transition to Holdover-Out-Of-Spec |
-| FUNC-TGM003-R2 | [§8.3](#83-holdover-out-of-spec-state-announce-content), [G.8275.1](#42-normative-references) Table 2 | Upon entering Holdover-Out-Of-Spec, Announce messages must reflect clockClass 140, clockAccuracy unknown (0xFE), timeSource internal oscillator (0xA0), timeTraceable FALSE, frequencyTraceable TRUE      |
+| Requirement ID | Spec traceability                   | Requirement text                                                                                                                                                                                                           |
+| :------------- | :---------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FUNC-TGM003-R1 | [§13.1.2](#1312-gnss-configuration) | Given a T-GM is initialising its GNSS receiver, it must configure the receiver to track the user-specified constellations (defaulting to GPS + Galileo)                                                                    |
+| FUNC-TGM003-R2 | [§13.1.2](#1312-gnss-configuration) | Given a T-GM is initialising its GNSS receiver, if a saved fixed 3D position does not exist or a re-survey is forced, it must initiate a GNSS antenna survey using the configured `surveyDuration` and `surveyMinAccuracy` |
+| FUNC-TGM003-R3 | [§13.1.2](#1312-gnss-configuration) | Given a GNSS antenna survey completes successfully, the system must save the surveyed fixed 3D position into the receiver's non-volatile storage to avoid unnecessary re-surveys on subsequent restarts                    |
+| FUNC-TGM003-R4 | [§13.1.2](#1312-gnss-configuration) | Given a T-GM is initialising its GNSS receiver, it must configure the receiver to apply the user-supplied `antennaCableDelay` to compensate for coaxial cable propagation delay                                            |
+| FUNC-TGM003-R5 | [§13.1.2](#1312-gnss-configuration) | Given a T-GM is initialising its GNSS receiver, if `customCommands` are provided, the system must successfully transmit and apply these raw commands to the receiver                                                       |
 
-### 15.4 State Machine — Holdover to Free-Run
+### 15.4 Per-State Announce Content Verification
 
 #### ID: FUNC-TGM004
 
-| Requirement ID | Spec traceability                                                                                | Requirement text                                                                                                                                                                          |
-| :------------- | :----------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FUNC-TGM004-R1 | [§6.4 Holdover-To-FreeRun](#64-state-transition-conditions), [T7/T9](#65-state-transition-table) | Given a T-GM is in any Holdover state, when the measured or estimated phase offset exceeds `LocalMaxHoldoverOffSet`, then the T-GM must transition to Free-Run                            |
-| FUNC-TGM004-R2 | [§8.4](#84-free-run-state-announce-content), [G.8275.1](#42-normative-references) Table 2        | Upon entering Free-Run, Announce messages must reflect clockClass 248, clockAccuracy unknown (0xFE), timeSource internal oscillator (0xA0), timeTraceable FALSE, frequencyTraceable FALSE |
+| Requirement ID | Spec traceability                                                                                     | Requirement text                                                                                                                                                                                                        |
+| :------------- | :---------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FUNC-TGM004-R1 | [§8.1](#81-locked-state-announce-content), [G.8275.1](#42-normative-references) Table 2               | Given a T-GM is in Locked state, then Announce messages must contain: clockClass=6, clockAccuracy=0x21, offsetScaledLogVariance=0x4E5D, timeSource=GNSS(0x20), timeTraceable=TRUE, frequencyTraceable=TRUE              |
+| FUNC-TGM004-R2 | [§8.2](#82-holdover-in-spec-state-announce-content), [G.8275.1](#42-normative-references) Table 2     | Given a T-GM is in Holdover-In-Spec state, then Announce messages must contain: clockClass=7, clockAccuracy=0xFE, offsetScaledLogVariance=0xFFFF, timeSource=INT_OSC(0xA0), timeTraceable=TRUE, frequencyTraceable=TRUE |
+| FUNC-TGM004-R3 | [§8.3](#83-holdover-out-of-spec-state-announce-content), [G.8275.1](#42-normative-references) Table 2 | Given a T-GM is in Holdover-Out-Of-Spec state, then Announce messages must contain: clockClass=140, clockAccuracy=0xFE, timeTraceable=FALSE, frequencyTraceable=TRUE                                                    |
+| FUNC-TGM004-R4 | [§8.4](#84-free-run-state-announce-content), [G.8275.1](#42-normative-references) Table 2             | Given a T-GM is in Free-Run state, then Announce messages must contain: clockClass=248, clockAccuracy=0xFE, timeTraceable=FALSE, frequencyTraceable=FALSE                                                               |
+| FUNC-TGM004-R5 | [§8.5](#85-key-differences-across-states)                                                             | Given a T-GM is in any state, then `currentUtcOffset` must contain the correct TAI−UTC offset and `currentUtcOffsetValid` must be TRUE                                                                                  |
+| FUNC-TGM004-R6 | [§8.6](#86-announce-update-timing), [§6.7](#67-general-timing-constraints)                            | Given a T-GM transitions between any two states, then Announce messages on all ports must reflect the new state within one Announce interval                                                                            |
 
-### 15.5 State Machine — Re-Lock from Degraded State
+### 15.5 Events — State Change Notification
 
 #### ID: FUNC-TGM005
 
-| Requirement ID | Spec traceability                                                                       | Requirement text                                                                                                                                                                  |
-| :------------- | :-------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FUNC-TGM005-R1 | [§6.4 AllLocked](#64-state-transition-conditions), [T5/T8](#65-state-transition-table)  | Given a T-GM is in any Holdover or Free-Run state, when GNSS reference is re-acquired and all lock conditions are met per FUNC-TGM001-R1, then the T-GM must transition to Locked |
-| FUNC-TGM005-R2 | [§8.1](#81-locked-state-announce-content), [G.8275.1](#42-normative-references) Table 2 | Upon re-lock, Announce messages must be restored to Locked-state parameters (See FUNC-TGM001-R2)                                                                                  |
+| Requirement ID | Spec traceability                                                                 | Requirement text                                                                                                                                                                                                                     |
+| :------------- | :-------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FUNC-TGM005-R1 | [§12.5](#125-events-per-state-transition), [§6.7](#67-general-timing-constraints) | Given a monitoring system is subscribed to T-GM state events, when the T-GM transitions between any two states, then a CloudEvents-formatted `event.sync.ptp-status.ptp-state-change` notification must be published within 1 second |
+| FUNC-TGM005-R2 | [§12.2](#122-event-generation-rules)                                              | The event must contain the new state, previous state, and relevant metric values                                                                                                                                                     |
+| FUNC-TGM005-R3 | [§12.5](#125-events-per-state-transition), [§6.7](#67-general-timing-constraints) | Given the T-GM clock class changes, then an `event.sync.ptp-status.ptp-clock-class-change` event must be published within 1 second                                                                                                   |
+| FUNC-TGM005-R4 | [§12.5](#125-events-per-state-transition), [§6.7](#67-general-timing-constraints) | Given the GNSS fix state changes, then an `event.sync.gnss-status.gnss-state-change` event must be published within 1 second                                                                                                         |
+| FUNC-TGM005-R5 | [§12.2](#122-event-generation-rules)                                              | Given the T-GM is in a stable state, then state change events must not be published periodically, but only edge-triggered upon actual state or value transition                                                                      |
 
-### 15.6 State Machine — Non-GNSS Fault to Free-Run
+### 15.6 Process Orchestration — Startup Order and Lifecycle
 
 #### ID: FUNC-TGM006
 
-| Requirement ID | Spec traceability                                                                      | Requirement text                                                                                                                                                                                                                           |
-| :------------- | :------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FUNC-TGM006-R1 | [§6.4 NonGNSSFault](#64-state-transition-conditions), [T4](#65-state-transition-table) | Given a T-GM is in Locked state, when a non-GNSS-loss fault occurs that prevents time traceability (e.g., PHC synchroniser enters FREERUN while DPLL is LOCKED, or a process crash is detected), then the T-GM must transition to Free-Run |
+| Requirement ID | Spec traceability                               | Requirement text                                                                                                                                                           |
+| :------------- | :---------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FUNC-TGM006-R1 | [§9.2 step 1–2](#92-t-gm-process-startup-order) | Given a T-GM configuration is applied, then the GNSS monitor and DPLL monitor must be the first processes started                                                          |
+| FUNC-TGM006-R2 | [§9.2 step 3](#92-t-gm-process-startup-order)   | Given GNSS and DPLL monitors are running, then ts2phc must be started next                                                                                                 |
+| FUNC-TGM006-R3 | [§9.2 step 4](#92-t-gm-process-startup-order)   | Given ts2phc is running, then ptp4l must be started                                                                                                                        |
+| FUNC-TGM006-R4 | [§9.2 step 5](#92-t-gm-process-startup-order)   | Given ts2phc has not yet reported LOCKED (s2), then phc2sys must NOT be started                                                                                            |
+| FUNC-TGM006-R5 | [§9.3](#93-process-lifecycle)                   | Given a process exits unexpectedly, then it must be restarted automatically, and other healthy processes must NOT be stopped and restarted solely to re-establish ordering |
+| FUNC-TGM006-R6 | [§9.3](#93-process-lifecycle)                   | Given a configuration change occurs, then all processes must be stopped and restarted in the correct startup order                                                         |
 
-### 15.7 Initialisation — Clock Type and Initial State
+### 15.7 Process Failure — T-GM Behaviour
 
 #### ID: FUNC-TGM007
 
-| Requirement ID | Spec traceability                                 | Requirement text                                                                                                                                                                                       |
-| :------------- | :------------------------------------------------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FUNC-TGM007-R1 | [§6.6 step 1](#66-initialisation-behaviour)       | Given a node configuration is applied, then the system must determine the PTP clock type (T-GM) from the `clockType` field in the PtpConfig resource                                                   |
-| FUNC-TGM007-R2 | [§6.6 step 2](#66-initialisation-behaviour)       | Given the clock type is determined, then processes must be started in the required startup order with generated configurations                                                                         |
-| FUNC-TGM007-R3 | [§6.6 step 4](#66-initialisation-behaviour)       | Given initialisation completes, then the system must enter the Free-Run state unconditionally, regardless of whether GNSS is already available                                                         |
-| FUNC-TGM007-R4 | [§6.5 T1](#65-state-transition-table)             | Given a T-GM has just initialised, when GNSS is already available, then the system must NOT bypass Free-Run — it must progress through the full lock acquisition sequence to reach Locked              |
-| FUNC-TGM007-R5 | [§13.1.1](#1311-clock-type-and-ieee-1588-profile) | Given a telecom profile is designated, the system must validate that the user configuration conforms to profile-mandated parameter constraints and reject it at admission time if a violation is found |
+| Requirement ID | Spec traceability                                     | Requirement text                                                                                                                                        |
+| :------------- | :---------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| FUNC-TGM007-R1 | [§9.5 ts2phc](#95-t-gm-behaviour-on-process-failure)  | Given ts2phc crashes and restarts within `processDowntimeThresholds.ts2phc`, then no state-change events must be emitted                                |
+| FUNC-TGM007-R2 | [§9.5 ts2phc](#95-t-gm-behaviour-on-process-failure)  | Given ts2phc crashes and remains down beyond `processDowntimeThresholds.ts2phc`, then the system must enter holdover and emit clock class change events |
+| FUNC-TGM007-R3 | [§9.5 ptp4l](#95-t-gm-behaviour-on-process-failure)   | Given ptp4l crashes, then downstream clients lose synchronisation; clock class change events must be emitted if downtime exceeds the threshold          |
+| FUNC-TGM007-R4 | [§9.5 phc2sys](#95-t-gm-behaviour-on-process-failure) | Given phc2sys crashes and restarts within its threshold, then E3 (os-clock-sync-state-change) must NOT toggle LOCKED→FREERUN→LOCKED                     |
+| FUNC-TGM007-R5 | [§9.3](#93-process-lifecycle)                         | Given any timing process crashes, then it must be automatically restarted and `openshift_ptp_process_restart_count` must be incremented                 |
 
-### 15.8 GNSS Initialisation and Configuration
+### 15.8 Observability — Metrics Emission
 
 #### ID: FUNC-TGM008
 
-| Requirement ID | Spec traceability                   | Requirement text                                                                                                                                                                                                           |
-| :------------- | :---------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FUNC-TGM008-R1 | [§13.1.2](#1312-gnss-configuration) | Given a T-GM is initialising its GNSS receiver, it must configure the receiver to track the user-specified constellations (defaulting to GPS + Galileo)                                                                    |
-| FUNC-TGM008-R2 | [§13.1.2](#1312-gnss-configuration) | Given a T-GM is initialising its GNSS receiver, if a saved fixed 3D position does not exist or a re-survey is forced, it must initiate a GNSS antenna survey using the configured `surveyDuration` and `surveyMinAccuracy` |
-| FUNC-TGM008-R3 | [§13.1.2](#1312-gnss-configuration) | Given a GNSS antenna survey completes successfully, the system must save the surveyed fixed 3D position into the receiver's non-volatile storage to avoid unnecessary re-surveys on subsequent restarts                    |
-| FUNC-TGM008-R4 | [§13.1.2](#1312-gnss-configuration) | Given a T-GM is initialising its GNSS receiver, it must configure the receiver to apply the user-supplied `antennaCableDelay` to compensate for coaxial cable propagation delay                                            |
-| FUNC-TGM008-R5 | [§13.1.2](#1312-gnss-configuration) | Given a T-GM is initialising its GNSS receiver, if `customCommands` are provided, the system must successfully transmit and apply these raw commands to the receiver                                                       |
-
-### 15.9 Per-State Announce Content Verification
-
-#### ID: FUNC-TGM009
-
-| Requirement ID | Spec traceability                                                                                     | Requirement text                                                                                                                                                                                                        |
-| :------------- | :---------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FUNC-TGM009-R1 | [§8.1](#81-locked-state-announce-content), [G.8275.1](#42-normative-references) Table 2               | Given a T-GM is in Locked state, then Announce messages must contain: clockClass=6, clockAccuracy=0x21, offsetScaledLogVariance=0x4E5D, timeSource=GNSS(0x20), timeTraceable=TRUE, frequencyTraceable=TRUE              |
-| FUNC-TGM009-R2 | [§8.2](#82-holdover-in-spec-state-announce-content), [G.8275.1](#42-normative-references) Table 2     | Given a T-GM is in Holdover-In-Spec state, then Announce messages must contain: clockClass=7, clockAccuracy=0xFE, offsetScaledLogVariance=0xFFFF, timeSource=INT_OSC(0xA0), timeTraceable=TRUE, frequencyTraceable=TRUE |
-| FUNC-TGM009-R3 | [§8.3](#83-holdover-out-of-spec-state-announce-content), [G.8275.1](#42-normative-references) Table 2 | Given a T-GM is in Holdover-Out-Of-Spec state, then Announce messages must contain: clockClass=140, clockAccuracy=0xFE, timeTraceable=FALSE, frequencyTraceable=TRUE                                                    |
-| FUNC-TGM009-R4 | [§8.4](#84-free-run-state-announce-content), [G.8275.1](#42-normative-references) Table 2             | Given a T-GM is in Free-Run state, then Announce messages must contain: clockClass=248, clockAccuracy=0xFE, timeTraceable=FALSE, frequencyTraceable=FALSE                                                               |
-| FUNC-TGM009-R5 | [§8.5](#85-key-differences-across-states)                                                             | Given a T-GM is in any state, then `currentUtcOffset` must contain the correct TAI−UTC offset and `currentUtcOffsetValid` must be TRUE                                                                                  |
-| FUNC-TGM009-R6 | [§8.6](#86-announce-update-timing), [§6.7](#67-general-timing-constraints)                            | Given a T-GM transitions between any two states, then Announce messages on all ports must reflect the new state within one Announce interval                                                                            |
-
-### 15.10 Events — State Change Notification
-
-#### ID: FUNC-TGM010
-
-| Requirement ID | Spec traceability                                                                 | Requirement text                                                                                                                                                                                                                     |
-| :------------- | :-------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FUNC-TGM010-R1 | [§12.5](#125-events-per-state-transition), [§6.7](#67-general-timing-constraints) | Given a monitoring system is subscribed to T-GM state events, when the T-GM transitions between any two states, then a CloudEvents-formatted `event.sync.ptp-status.ptp-state-change` notification must be published within 1 second |
-| FUNC-TGM010-R2 | [§12.2](#122-event-generation-rules)                                              | The event must contain the new state, previous state, and relevant metric values                                                                                                                                                     |
-| FUNC-TGM010-R3 | [§12.5](#125-events-per-state-transition), [§6.7](#67-general-timing-constraints) | Given the T-GM clock class changes, then an `event.sync.ptp-status.ptp-clock-class-change` event must be published within 1 second                                                                                                   |
-| FUNC-TGM010-R4 | [§12.5](#125-events-per-state-transition), [§6.7](#67-general-timing-constraints) | Given the GNSS fix state changes, then an `event.sync.gnss-status.gnss-state-change` event must be published within 1 second                                                                                                         |
-| FUNC-TGM010-R5 | [§12.2](#122-event-generation-rules)                                              | Given the T-GM is in a stable state, then state change events must not be published periodically, but only edge-triggered upon actual state or value transition                                                                      |
-
-### 15.11 Process Orchestration — Startup Order and Lifecycle
-
-#### ID: FUNC-TGM011
-
-| Requirement ID | Spec traceability                               | Requirement text                                                                                                                                                           |
-| :------------- | :---------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FUNC-TGM011-R1 | [§9.2 step 1–2](#92-t-gm-process-startup-order) | Given a T-GM configuration is applied, then the GNSS monitor and DPLL monitor must be the first processes started                                                          |
-| FUNC-TGM011-R2 | [§9.2 step 3](#92-t-gm-process-startup-order)   | Given GNSS and DPLL monitors are running, then ts2phc must be started next                                                                                                 |
-| FUNC-TGM011-R3 | [§9.2 step 4](#92-t-gm-process-startup-order)   | Given ts2phc is running, then ptp4l must be started                                                                                                                        |
-| FUNC-TGM011-R4 | [§9.2 step 5](#92-t-gm-process-startup-order)   | Given ts2phc has not yet reported LOCKED (s2), then phc2sys must NOT be started                                                                                            |
-| FUNC-TGM011-R5 | [§9.3](#93-process-lifecycle)                   | Given a process exits unexpectedly, then it must be restarted automatically, and other healthy processes must NOT be stopped and restarted solely to re-establish ordering |
-| FUNC-TGM011-R6 | [§9.3](#93-process-lifecycle)                   | Given a configuration change occurs, then all processes must be stopped and restarted in the correct startup order                                                         |
-
-### 15.12 Process Failure — T-GM Behaviour
-
-#### ID: FUNC-TGM012
-
-| Requirement ID | Spec traceability                                     | Requirement text                                                                                                                                        |
-| :------------- | :---------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| FUNC-TGM012-R1 | [§9.5 ts2phc](#95-t-gm-behaviour-on-process-failure)  | Given ts2phc crashes and restarts within `processDowntimeThresholds.ts2phc`, then no state-change events must be emitted                                |
-| FUNC-TGM012-R2 | [§9.5 ts2phc](#95-t-gm-behaviour-on-process-failure)  | Given ts2phc crashes and remains down beyond `processDowntimeThresholds.ts2phc`, then the system must enter holdover and emit clock class change events |
-| FUNC-TGM012-R3 | [§9.5 ptp4l](#95-t-gm-behaviour-on-process-failure)   | Given ptp4l crashes, then downstream clients lose synchronisation; clock class change events must be emitted if downtime exceeds the threshold          |
-| FUNC-TGM012-R4 | [§9.5 phc2sys](#95-t-gm-behaviour-on-process-failure) | Given phc2sys crashes and restarts within its threshold, then E3 (os-clock-sync-state-change) must NOT toggle LOCKED→FREERUN→LOCKED                     |
-| FUNC-TGM012-R5 | [§9.3](#93-process-lifecycle)                         | Given any timing process crashes, then it must be automatically restarted and `openshift_ptp_process_restart_count` must be incremented                 |
-
-### 15.13 Observability — Metrics Emission
-
-#### ID: FUNC-TGM013
-
 | Requirement ID | Spec traceability                                                 | Requirement text                                                                                                                                              |
 | :------------- | :---------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| FUNC-TGM013-R1 | [§11.1.1 clock_state](#1111-clock-state-and-class)                | Given a T-GM is running, then `openshift_ptp_clock_state` must be emitted per interface and per process with values 0=FREERUN, 1=LOCKED, 2=HOLDOVER           |
-| FUNC-TGM013-R2 | [§11.1.1 clock_class](#1111-clock-state-and-class)                | Given a T-GM is running, then `openshift_ptp_clock_class` must be emitted with the current clock class value and updated within 1 second of a change          |
-| FUNC-TGM013-R3 | [§11.1.2 offset_ns](#1112-offset-and-delay)                       | Given a T-GM is running, then `openshift_ptp_offset_ns` must be emitted per measurement point (ts2phc, GNSS, DPLL, phc2sys)                                   |
-| FUNC-TGM013-R4 | [§11.1.4 interface_role](#1114-interface-role)                    | Given a T-GM is running, then all PTP ports must report `openshift_ptp_interface_role` = 2 (TT/MASTER)                                                        |
-| FUNC-TGM013-R5 | [§11.1.5 process_status](#1115-process-health)                    | Given a T-GM is running, then `openshift_ptp_process_status` (0=DOWN, 1=UP) and `openshift_ptp_process_restart_count` must be emitted per managed process     |
-| FUNC-TGM013-R6 | [§10.4](#104-phc-status-monitoring), [§11.1.3](#1113-dpll-status) | Given a T-GM has GNSS and DPLL subsystems, then GNSS fix state, GNSS offset, DPLL lock state, and DPLL phase offset metrics must be published once per second |
+| FUNC-TGM008-R1 | [§11.1.1 clock_state](#1111-clock-state-and-class)                | Given a T-GM is running, then `openshift_ptp_clock_state` must be emitted per interface and per process with values 0=FREERUN, 1=LOCKED, 2=HOLDOVER           |
+| FUNC-TGM008-R2 | [§11.1.1 clock_class](#1111-clock-state-and-class)                | Given a T-GM is running, then `openshift_ptp_clock_class` must be emitted with the current clock class value and updated within 1 second of a change          |
+| FUNC-TGM008-R3 | [§11.1.2 offset_ns](#1112-offset-and-delay)                       | Given a T-GM is running, then `openshift_ptp_offset_ns` must be emitted per measurement point (ts2phc, GNSS, DPLL, phc2sys)                                   |
+| FUNC-TGM008-R4 | [§11.1.4 interface_role](#1114-interface-role)                    | Given a T-GM is running, then all PTP ports must report `openshift_ptp_interface_role` = 2 (TT/MASTER)                                                        |
+| FUNC-TGM008-R5 | [§11.1.5 process_status](#1115-process-health)                    | Given a T-GM is running, then `openshift_ptp_process_status` (0=DOWN, 1=UP) and `openshift_ptp_process_restart_count` must be emitted per managed process     |
+| FUNC-TGM008-R6 | [§10.4](#104-phc-status-monitoring), [§11.1.3](#1113-dpll-status) | Given a T-GM has GNSS and DPLL subsystems, then GNSS fix state, GNSS offset, DPLL lock state, and DPLL phase offset metrics must be published once per second |
+| FUNC-TGM008-R7 | [§6.2](#62-state-definitions), [§6.4](#64-state-transition-conditions) | Given a T-GM is in any composite state, then the system must provide a uniquely and unambiguously observable representation of its current state across the four-state model defined in §6.2 (Free-Run, Locked, Holdover-In-Spec, Holdover-Out-Of-Spec), including differentiation of the two holdover sub-states per the criteria defined in §6.4 |
 
 ---
 
-### 15.14 SyncE (Synchronous Ethernet) Distribution
+### 15.9 SyncE (Synchronous Ethernet) Distribution
 
-#### ID: FUNC-TGM014
+#### ID: FUNC-TGM009
 
 | Requirement ID | Spec traceability                                                                 | Requirement text                                                                                                                                                       |
 | :------------- | :-------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FUNC-TGM014-R1 | [§5.3](#53-synce-synchronous-ethernet-role)                                       | Given SyncE is configured, the T-GM must distribute frequency from the frequency-locked oscillator to the Ethernet PHY on all configured SyncE ports                   |
-| FUNC-TGM014-R2 | [§5.3](#53-synce-synchronous-ethernet-role)                                       | Given SyncE is configured, the ESMC protocol must advertise QL-PRC (or equivalent) when the T-GM is LOCKED, a degraded QL when in HOLDOVER, and QL-DNU when in FREERUN |
-| FUNC-TGM014-R3 | [§12.5](#125-events-per-state-transition), [§6.7](#67-general-timing-constraints) | Given SyncE is configured, when the SyncE clock quality or state changes, the system must publish `event.sync.synce-status.*` events within 1 second                   |
+| FUNC-TGM009-R1 | [§5.3](#53-synce-synchronous-ethernet-role)                                       | Given SyncE is configured, the T-GM must distribute frequency from the frequency-locked oscillator to the Ethernet PHY on all configured SyncE ports                   |
+| FUNC-TGM009-R2 | [§5.3](#53-synce-synchronous-ethernet-role)                                       | Given SyncE is configured, the ESMC protocol must advertise QL-PRC (or equivalent) when the T-GM is LOCKED, a degraded QL when in HOLDOVER, and QL-DNU when in FREERUN |
+| FUNC-TGM009-R3 | [§12.5](#125-events-per-state-transition), [§6.7](#67-general-timing-constraints) | Given SyncE is configured, when the SyncE clock quality or state changes, the system must publish `event.sync.synce-status.*` events within 1 second                   |
 
-### 15.15 Security and Authentication
+### 15.10 Security and Authentication
 
-#### ID: FUNC-TGM015
+#### ID: FUNC-TGM010
 
 | Requirement ID | Spec traceability   | Requirement text                                                                                                                                                                                    |
 | :------------- | :------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FUNC-TGM015-R1 | [§14](#14-security) | Given PTP authentication ([IEEE 1588](#42-normative-references) Annex P / NTS) is configured, the system must append authentication TLVs to transmitted PTP messages and validate incoming messages |
-| FUNC-TGM015-R2 | [§14](#14-security) | Given authentication key material is updated, the system must detect the change and restart affected processes without requiring a full pod restart                                                 |
-| FUNC-TGM015-R3 | [§14](#14-security) | Given the GNSS hardware detects spoofing or jamming, the system must immediately force the clock state manager to evaluate GNSS as FREERUN                                                          |
+| FUNC-TGM010-R1 | [§14](#14-security) | Given PTP authentication ([IEEE 1588](#42-normative-references) Annex P / NTS) is configured, the system must append authentication TLVs to transmitted PTP messages and validate incoming messages |
+| FUNC-TGM010-R2 | [§14](#14-security) | Given authentication key material is updated, the system must detect the change and restart affected processes without requiring a full pod restart                                                 |
+| FUNC-TGM010-R3 | [§14](#14-security) | Given the GNSS hardware detects spoofing or jamming, the system must immediately force the clock state manager to evaluate GNSS as FREERUN                                                          |
 
-### 15.16 Drift Monitoring and Re-Survey
+### 15.11 Drift Monitoring and Re-Survey
 
-#### ID: FUNC-TGM016
+#### ID: FUNC-TGM011
 
 | Requirement ID | Spec traceability                   | Requirement text                                                                                                                                                  |
 | :------------- | :---------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FUNC-TGM016-R1 | [§13.1.2](#1312-gnss-configuration) | Given the GNSS receiver has transitioned into fixed-position mode, the system must monitor for position drift                                                     |
-| FUNC-TGM016-R2 | [§13.1.2](#1312-gnss-configuration) | Given position drift exceeds the configured `surveyMinAccuracy`, the system must restart the GNSS antenna survey procedure to reestablish a new fixed 3D position |
+| FUNC-TGM011-R1 | [§13.1.2](#1312-gnss-configuration) | Given the GNSS receiver has transitioned into fixed-position mode, the system must monitor for position drift                                                     |
+| FUNC-TGM011-R2 | [§13.1.2](#1312-gnss-configuration) | Given position drift exceeds the configured `surveyMinAccuracy`, the system must restart the GNSS antenna survey procedure to reestablish a new fixed 3D position |
 
 ## 16. Performance Requirements Specification
 

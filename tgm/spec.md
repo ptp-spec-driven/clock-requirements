@@ -6,7 +6,7 @@
 
 **Created**: 2026-06-22
 
-**Last Updated**: 2026-08-18
+**Last Updated**: 2026-08-19
 
 **Status**: Draft
 
@@ -14,12 +14,12 @@
 
 | Name           | Role     | Date       |
 | :------------- | :------- | :--------- |
-| Jim Ramsay     | Author   | 2026-08-18 |
+| Jim Ramsay     | Author   | 2026-08-19 |
 | Yang Liu       | Reviewer | —          |
 | Brady Johnson  | Reviewer | —          |
-| Ken Young      | Reviewer | —          |
+| Ken Young      | Reviewer | 2026-08-19 |
 | Rigel Di Scala | Reviewer | —          |
-| Pasi Vaananen  | SME      | —          |
+| Pasi Vaananen  | SME      | 2026-08-19 |
 
 ---
 

@@ -27,12 +27,12 @@
 
 Spec-level additions still needed.
 
-| #    | Area  | Item                                                                                                                                                                |
-| :--- | :---- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| S-01 | §5.3  | SyncE additional states and behaviours depending on the overall clock state are not yet defined in this document                                                    |
-| S-02 | §6.2  | Resolve FFS: whether the announced clock class/accuracy could be configurable or auto-configured when the internal accuracy warrants a better declaration than 0x21 |
-| S-03 | §6.7  | Resolve FFS: convergence time for lock — depends on GNSS acquisition time, servo algorithm, and DPLL lock time                                                      |
-| S-04 | §10.1 | Resolve FFS: DPLL fractional frequency offset measurement point                                                                                                     |
+| #    | Area  | Item                                                                                                                                                                                                                                           |
+| :--- | :---- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| S-01 | §5.3  | SyncE additional states and behaviours depending on the overall clock state are not yet defined in this document                                                                                                                               |
+| S-02 | §6.2  | Resolve FFS: whether the announced clock class/accuracy could be configurable or auto-configured when the internal accuracy warrants a better declaration than 0x21                                                                            |
+| S-03 | §6.7  | Resolve FFS: convergence time for lock — depends on GNSS acquisition time, servo algorithm, and DPLL lock time. Suggested 60s but we need to declare startup conditions, or perhaps a set of startup conditions for deterministic measurement. |
+| S-04 | §10.1 | Resolve FFS: DPLL fractional frequency offset measurement point                                                                                                                                                                                |
 
 ---
 
@@ -166,7 +166,7 @@ The T-GM acquires time, frequency and phase from a GNSS receiver acting as a bui
 **Signal flow in Locked state (single-NIC):**
 
 ```text
-GNSS Constellation
+GNSS Constellation(s)
        │
        │ RF signal
        ▼
@@ -176,6 +176,7 @@ GNSS Constellation
 └──────┬───────┘                 │
        │                         │
        │ 1PPS (phase/freq)       │
+       │ (and optionally 10MHz)  │
        ▼                         ▼
 ┌──────────┐    disciplines   ┌──────┐    HW timestamps  ┌──────────┐
 │   DPLL   │───────────────►  │ PHC  │───────────────►   │  PTP TT  │
@@ -202,7 +203,7 @@ GNSS Constellation
 **Signal flow in multi-NIC configuration (leader + follower):**
 
 ```text
- GNSS Constellation
+ GNSS Constellation(s)
        │
        │ RF signal
        ▼
@@ -212,6 +213,7 @@ GNSS Constellation
 └──────────────┘                   │
        │                           │
        │ 1PPS (phase/freq)         │
+       │ (and optionally 10MHz)    │
        ▼                           ▼
 ┌────────────┐    disciplines   ┌──────┐    HW timestamps  ┌──────────┐
 │ DPLL (Ldr) │───────────────►  │ PHC1 │───────────────►   │ PTP TT   │──┐
@@ -242,7 +244,7 @@ An optional parallel path distributes frequency via SyncE (DPLL → EEC → ESMC
 When the GNSS reference is lost, the DPLL free-runs on its internal OCXO. Unlike T-BC, the synchronisation direction does **not** reverse — the DPLL continues to discipline the PHC, but from a free-running oscillator rather than a GNSS-locked one:
 
 ```text
- GNSS Constellation
+ GNSS Constellation(s)
        │
        X RF signal
 
@@ -252,6 +254,7 @@ When the GNSS reference is lost, the DPLL free-runs on its internal OCXO. Unlike
 └──────────────┘                   │
        │                           │
        X 1PPS (phase/freq)         X
+         (and optionally 10MHz)
 
 ┌──────────┐    disciplines   ┌──────┐    HW timestamps  ┌──────────┐
 │   DPLL   │───────────────►  │ PHC  │───────────────►   │ PTP TT   │
@@ -1058,14 +1061,14 @@ Functional requirements in this section express **testable product behaviour** d
 
 #### ID: FUNC-TGM013
 
-| Requirement ID | Spec traceability                                                 | Requirement text                                                                                                                                                       |
-| :------------- | :---------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FUNC-TGM013-R1 | [§11.1.1 clock_state](#1111-clock-state-and-class)                | Given a T-GM is running, then `openshift_ptp_clock_state` must be emitted per interface and per process with values 0=FREERUN, 1=LOCKED, 2=HOLDOVER                    |
-| FUNC-TGM013-R2 | [§11.1.1 clock_class](#1111-clock-state-and-class)                | Given a T-GM is running, then `openshift_ptp_clock_class` must be emitted with the current clock class value and updated within 1 second of a change                   |
-| FUNC-TGM013-R3 | [§11.1.2 offset_ns](#1112-offset-and-delay)                       | Given a T-GM is running, then `openshift_ptp_offset_ns` must be emitted per measurement point (ts2phc, GNSS, DPLL, phc2sys)                                            |
-| FUNC-TGM013-R4 | [§11.1.4 interface_role](#1114-interface-role)                    | Given a T-GM is running, then all PTP ports must report `openshift_ptp_interface_role` = 2 (TT/MASTER)                                                                 |
-| FUNC-TGM013-R5 | [§11.1.5 process_status](#1115-process-health)                    | Given a T-GM is running, then `openshift_ptp_process_status` (0=DOWN, 1=UP) and `openshift_ptp_process_restart_count` must be emitted per managed process              |
-| FUNC-TGM013-R6 | [§10.4](#104-phc-status-monitoring), [§11.1.3](#1113-dpll-status) | Given a T-GM has GNSS and DPLL subsystems, then GNSS fix state, GNSS offset, DPLL lock state, and DPLL phase offset metrics must be published at least once per second |
+| Requirement ID | Spec traceability                                                 | Requirement text                                                                                                                                              |
+| :------------- | :---------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| FUNC-TGM013-R1 | [§11.1.1 clock_state](#1111-clock-state-and-class)                | Given a T-GM is running, then `openshift_ptp_clock_state` must be emitted per interface and per process with values 0=FREERUN, 1=LOCKED, 2=HOLDOVER           |
+| FUNC-TGM013-R2 | [§11.1.1 clock_class](#1111-clock-state-and-class)                | Given a T-GM is running, then `openshift_ptp_clock_class` must be emitted with the current clock class value and updated within 1 second of a change          |
+| FUNC-TGM013-R3 | [§11.1.2 offset_ns](#1112-offset-and-delay)                       | Given a T-GM is running, then `openshift_ptp_offset_ns` must be emitted per measurement point (ts2phc, GNSS, DPLL, phc2sys)                                   |
+| FUNC-TGM013-R4 | [§11.1.4 interface_role](#1114-interface-role)                    | Given a T-GM is running, then all PTP ports must report `openshift_ptp_interface_role` = 2 (TT/MASTER)                                                        |
+| FUNC-TGM013-R5 | [§11.1.5 process_status](#1115-process-health)                    | Given a T-GM is running, then `openshift_ptp_process_status` (0=DOWN, 1=UP) and `openshift_ptp_process_restart_count` must be emitted per managed process     |
+| FUNC-TGM013-R6 | [§10.4](#104-phc-status-monitoring), [§11.1.3](#1113-dpll-status) | Given a T-GM has GNSS and DPLL subsystems, then GNSS fix state, GNSS offset, DPLL lock state, and DPLL phase offset metrics must be published once per second |
 
 ---
 
@@ -1114,19 +1117,19 @@ Performance requirements in this section trace to the relevant ITU-T recommendat
 
 When in the LOCKED state, the T-GM must meet the time error limits of a Primary Reference Time Clock (PRTC) as defined in [ITU-T G.8272](#42-normative-references).
 
-| Requirement ID                                                                                                                                                                        | Standards traceability                           | Requirement text                                                                                                                                  |
-| :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :----------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------ |
-| PERF-TGM001-R1                                                                                                                                                                        | [G.8272 §6.1](#42-normative-references) (PRTC-A) | Maximum absolute time error must not exceed ±100 ns relative to a recognised time reference (e.g., UTC via GNSS)                                  |
-| PERF-TGM001-R2                                                                                                                                                                        | [G.8272 §6.2](#42-normative-references) (PRTC-B) | Maximum absolute time error must not exceed ±40 ns relative to a recognised time reference (where PRTC-B is supported by the hardware)            |
-| PERF-TGM001-R3                                                                                                                                                                        | [G.8272](#42-normative-references) (general)     | The specific PRTC class supported (A or B) depends on the hardware platform. The system must be configurable to declare which PRTC class it meets |
-| NOTE. The locked-mode offset between the PHC and the GNSS 1PPS reference, as measured by the PHC synchroniser, must remain within the configured offset threshold (default: ±100 ns). |                                                  |                                                                                                                                                   |
+| Requirement ID                                                                                                                                                                                                                                      | Standards traceability                           | Requirement text                                                                                                                                  |
+| :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------ |
+| PERF-TGM001-R1                                                                                                                                                                                                                                      | [G.8272 §6.1](#42-normative-references) (PRTC-A) | Maximum absolute time error must not exceed ±100 ns relative to a recognised time reference (e.g., UTC via GNSS)                                  |
+| PERF-TGM001-R2                                                                                                                                                                                                                                      | [G.8272 §6.2](#42-normative-references) (PRTC-B) | Maximum absolute time error must not exceed ±40 ns relative to a recognised time reference (where PRTC-B is supported by the hardware)            |
+| PERF-TGM001-R3                                                                                                                                                                                                                                      | [G.8272](#42-normative-references) (general)     | The specific PRTC class supported (A or B) depends on the hardware platform. The system must be configurable to declare which PRTC class it meets |
+| NOTE. The locked-mode offset between the PHC and the GNSS 1PPS reference, as measured by the PHC synchroniser, must remain within the configured offset threshold (default: ±100 ns). This offset is cumulative and system-wide, not per-subsystem. |                                                  |                                                                                                                                                   |
 
 ### 16.2 Holdover Performance
 
-| Requirement ID | Standards traceability                                                 | Requirement text                                                                                                                                                                                                                                                       |
-| :------------- | :--------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| PERF-TGM002-R1 | [§6.8 Holdover Model](#68-holdover-model-and-configuration-parameters) | During holdover (in-spec), the clock must maintain time error within `MaxInSpecOffset` from the last known good reference                                                                                                                                              |
-| PERF-TGM002-R2 | [§6.8 Holdover Model](#68-holdover-model-and-configuration-parameters) | The actual holdover performance (slope of time error drift) depends on the hardware oscillator quality. The system must expose sufficient observability (offset metrics, holdover duration) to allow operators to verify compliance with their deployment requirements |
+| Requirement ID | Standards traceability                                                 | Requirement text                                                                                                                                                                                                                               |
+| :------------- | :--------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PERF-TGM002-R1 | [§6.8 Holdover Model](#68-holdover-model-and-configuration-parameters) | During holdover (in-spec), the clock must maintain time error within `MaxInSpecOffset` from the last known good reference                                                                                                                      |
+| PERF-TGM002-R2 | [§6.8 Holdover Model](#68-holdover-model-and-configuration-parameters) | The actual holdover performance (slope of time error drift) depends on the hardware oscillator quality. The system must expose offset and holdover duration metrics to allow operators to verify compliance with their deployment requirements |
 
 ### 16.3 Timing Message Rates
 

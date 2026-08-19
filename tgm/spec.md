@@ -27,12 +27,12 @@
 
 Spec-level additions still needed.
 
-| #    | Area  | Item                                                                                                                                                                                                                                           |
-| :--- | :---- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| S-01 | §5.3  | SyncE additional states and behaviours depending on the overall clock state are not yet defined in this document                                                                                                                               |
-| S-02 | §6.2  | Resolve FFS: whether the announced clock class/accuracy could be configurable or auto-configured when the internal accuracy warrants a better declaration than 0x21                                                                            |
-| S-03 | §6.7  | Resolve FFS: convergence time for lock — depends on GNSS acquisition time, servo algorithm, and DPLL lock time. Suggested 60s but we need to declare startup conditions, or perhaps a set of startup conditions for deterministic measurement. |
-| S-04 | §10.1 | Resolve FFS: DPLL fractional frequency offset measurement point                                                                                                                                                                                |
+| #    | Area                                             | Item                                                                                                                                                                                                                                           |
+| :--- | :----------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| S-01 | [§5.3](#51-clock-types-in-scope)                 | SyncE additional states and behaviours depending on the overall clock state are not yet defined in this document                                                                                                                               |
+| S-02 | [§6.2](#62-state-definitions)                    | Resolve FFS: whether the announced clock class/accuracy could be configurable or auto-configured when the internal accuracy warrants a better declaration than 0x21                                                                            |
+| S-03 | [§6.7](#67-general-timing-constraints)           | Resolve FFS: convergence time for lock — depends on GNSS acquisition time, servo algorithm, and DPLL lock time. Suggested 60s but we need to declare startup conditions, or perhaps a set of startup conditions for deterministic measurement. |
+| S-04 | [§15](#15-functional-requirements-specification) | Corellate our functional and performance requirements against the O-RAN WG4 "O-RAN Conformance Test Specification" and "O-RAN Fronthaul Interoperability Test Specification"                                                                   |
 
 ---
 
@@ -129,6 +129,8 @@ This document is the **living single source of truth** for T-GM behaviour. Funct
 - **[I1]** [O-RAN O-Cloud Notification API v2](https://specifications.o-ran.org/): O-RAN O-Cloud Notification API Specification for Event Consumers.
 - **[I2]** [O-RAN.WG4.TS.CUS.0-R005-v21.00 — O-RAN Control, User and Synchronization Plane Specification](https://orandownloadsweb.azurewebsites.net/specifications)
 - **[I3]** [CloudEvents Specification v1.0](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md)
+- **[I4]** [O-RAN Conformance Test Specification 16.0](https://specifications.o-ran.org/download?id=1102)
+- **[I5]** [O-RAN Fronthaul Interoperability Test Specification (IOT) 16.0](https://specifications.o-ran.org/download?id=1103)
 
 ---
 
@@ -666,7 +668,7 @@ If the process restarts within its configured threshold, state-change events are
 
 - GNSS receiver clock offset (GNSS-reported time vs receiver internal clock)
 - DPLL phase offset (DPLL vs reference input, reported in picoseconds via netlink)
-- DPLL fractional frequency offset (FFS)
+- DPLL fractional frequency offset (as measured from the DPLL eec/pps instance, and exposed as FFO on the active pin)
 - ts2phc offset (PHC vs GNSS 1PPS reference)
 - phc2sys offset (system clock vs PHC)
 

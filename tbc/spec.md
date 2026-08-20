@@ -1,10 +1,42 @@
 # Feature Specification: T-BC Testable Requirements
 
 **Module**: PTP Operator Stack (np-ptp-operator, np-linuxptp-daemon, cloud-event-proxy)
+
 **Author**: Vitaly Grinberg
+
 **Created**: 2026-06-16
-**Last Updated**: 2026-07-07
-**Status**: Approved
+
+**Last Updated**: 2026-08-20
+
+**Version**: release-5.1
+
+**Status**: Pending Sign-off
+
+### Approvals
+
+| Name | Role | Date | Spec version |
+| :--- | :--- | :--- | :--- |
+| Vitaly Grinberg | Author | 2026-08-18 | release-5.1 |
+| Yang Liu | Reviewer | — | — |
+| Brady Johnson | Reviewer | — | — |
+| Ken Young | Reviewer | 2026-08-18 | release-5.1 |
+| Rigel Di Scala | Reviewer | — | — |
+| Pasi Vaananen | SME | — | — |
+
+---
+
+## Specification TODO
+
+Spec-level additions still needed. Implementation gaps are tracked separately in [gaps.md](gaps.md).
+
+| # | Area | Item |
+| :--- | :--- | :--- |
+| S-01 | §6.3 | Resolve FFS: formal HoldoverCapable definition incorporating FFO-based or other reliable syntonization criteria |
+| S-02 | §6.3 | Resolve FFS: PTPSourceQualified — evaluate whether ptp4l S3 state can supplement or replace the moving-average filter |
+| S-03 | §6.7 | Resolve FFS: convergence time for re-lock after holdover |
+| S-04 | §6.8.5 | Specify how GNR-D reads the oscillator model from hardware |
+| S-05 | §15 | Add PERF-TBC* holdover and transient requirements once ITU-T FFS items are resolved |
+
 
 ---
 
@@ -16,6 +48,18 @@ across all operating states, performance metrics, state machines, and event
 contracts. Describes WHAT the system must do and WHY — not HOW.
 Any delta between current code and this specification is a bug or future backlog item.
 
+This document is the **living single source of truth** for T-BC behavior. At PTP operator **General Availability (release 5.1)**, standard functionality and performance must trace to the finite requirement set in §14 and §15. The operator must be either **fully compliant** with those requirements or maintain a **public list of gaps and waivers** (see [gaps.md](gaps.md)).
+
+### Traceability Model
+
+| Layer | Section | Traceability column means | External link target |
+| :--- | :--- | :--- | :--- |
+| **Behavioral** | §6–§13 (normative narrative) | Parent sections for FUNC/PERF IDs | Internal anchors in this document |
+| **Functional test requirements** | §14 | Maps each FUNC-TBC* ID to **internal spec sections** (our interpretation of standards + product behavior) | `[§6.3 InSync](#63-state-transition-conditions)` style |
+| **Performance test requirements** | §15 | Maps each PERF-TBC* ID **directly to the normative reference** clause/table | For example, [G.8273.2 §7.1](https://www.itu.int/rec/T-REC-G.8273.2/en) |
+| **Implementation gaps** | [gaps.md](gaps.md) | Code vs §14/§15 delta | FUNC/PERF IDs |
+| **Jira** | TELCOSTRAT-392 | Test epics / stories | FUNC-TBC* / PERF-TBC* IDs |
+
 ---
 
 ## 2. Goals
@@ -26,7 +70,7 @@ Any delta between current code and this specification is a bug or future backlog
 
 ## 3. Non-Goals
 
-- Duplicating upstream standards (IEEE 1588, ITU-T G.8273.2, G.8275)
+- Duplicating upstream standards ([IEEE 1588](#42-normative-references), [ITU-T G.8273.2](#42-normative-references), [G.8275](#42-normative-references))
 - Prescribing implementation details (languages, frameworks, internal APIs)
 - Defining T-GM (Grandmaster) behavior (covered separately)
 - Defining T-TSC behavior (see [T-TSC spec](../ttsc/spec.md))
@@ -35,81 +79,129 @@ Any delta between current code and this specification is a bug or future backlog
 
 ## 4. Glossary and Standards References
 
-4.1 Abbreviations and Acronyms
-- FFS - For Further Study
-- T-BC - Telecom Boundary Clock
-- T-TSC - Telecom Time Synchronous Clock
-- TR - Time Receiver
-- TT - Time Transmitter
-- DPLL - Digital Phase-Locked Loop
-- SyncE - Synchronous Ethernet
-- WPC - Westport Channel
-- PHC - PTP Hardware Clock
-- PMC - PTP Management Client
-- (A-)BMCA - (Alternate) Best Master Clock Algorithm
-- NIC - Network Interface Card
-- JBOD - Just a Bunch of Devices
-- OCXO - Oven-Controlled Crystal Oscillator
-- cTE - Constant Time Error
-- dTE - Dynamic Time Error
-- maxTE - Maximum Time Error
-- MTIE - Maximum Time Interval Error
-- TDEV - Time Deviation
+### 4.1 Abbreviations and Acronyms
+- **(A-)BMCA** - (Alternate) Best Master Clock Algorithm
+- **cTE** - Constant Time Error
+- **dTE** - Dynamic Time Error
+- **DPLL** - Digital Phase-Locked Loop
+- **FFS** - For Further Study
+- **JBOD** - Just a Bunch of Devices
+- **maxTE** - Maximum Time Error
+- **MTIE** - Maximum Time Interval Error
+- **NIC** - Network Interface Card
+- **OCXO** - Oven-Controlled Crystal Oscillator
+- **PHC** - PTP Hardware Clock
+- **PMC** - PTP Management Client
+- **SyncE** - Synchronous Ethernet
+- **T-BC** - Telecom Boundary Clock
+- **TDEV** - Time Deviation
+- **TR** - Time Receiver
+- **T-TSC** - Telecom Time Synchronous Clock
+- **TT** - Time Transmitter
+- **WPC** - Westport Channel
 
-4.2 Normative References
-- IEEE 1588-2019 (PTP v2.1)
-- ITU-T G.8273.2 — T-BC/T-TSC timing characteristics
-- ITU-T G.8275.1 — PTP telecom profile for phase/time (with full timing support)
-- ITU-T G.8275 (2024) Amd.1 — Clock modes and state definitions
+### 4.2 Normative References
+- **[N0]** [IEEE 1588-2008 (PTP v2)](https://standards.ieee.org/ieee/1588/4355/): "IEEE Standard for a Precision Clock Synchronization Protocol for Networked Measurement and Control Systems" (superseded by IEEE 1588-2019; referenced for backward compatibility with deployed equipment).
+- **[N1]** [IEEE 1588-2019 (PTP v2.1)](https://standards.ieee.org/ieee/1588/6825/): "Precision Time Protocol".
+- **[N2]** [Recommendation ITU-T G.781 (01/24)](https://www.itu.int/rec/T-REC-G.781/en): "Synchronization layer functions for frequency synchronization based on the physical layer".
+- **[N3]** [Recommendation ITU-T G.810 (08/1996)](https://www.itu.int/rec/T-REC-G.810/en): "Definitions and terminology for synchronization networks".
+- **[N4]** [Recommendation ITU-T G.8260 (11/22)](https://www.itu.int/rec/T-REC-G.8260/en): "Definitions and terminology for synchronization in packet networks".
+- **[N5]** [Recommendation ITU-T G.8261/Y.1361 (2019) Amendment 2 (10/2020)](https://www.itu.int/rec/T-REC-G.8261/en): "Timing and synchronization aspects in packet networks".
+- **[N6]** [Recommendation ITU-T G.8262/Y.1362 (2018) Amendment 1 (03/2020)](https://www.itu.int/rec/T-REC-G.8262/en): "Timing characteristics of synchronous equipment slave clock - Amendment 1".
+- **[N7]** [Recommendation ITU-T G.8262.1/Y.1362.1 (11/22)](https://www.itu.int/rec/T-REC-G.8262.1/en): "Timing characteristics of enhanced synchronous equipment slave clock".
+- **[N8]** [Recommendation ITU-T G.8264/Y.1364 (2017) Amendment 2 (01/24)](https://www.itu.int/rec/T-REC-G.8264/en): "Distribution of timing information through packet networks - Amendment 1".
+- **[N9]** [Recommendation ITU-T G.8271/Y.1366 (03/2020)](https://www.itu.int/rec/T-REC-G.8271/en): "Time and phase synchronization aspects of telecommunication networks".
+- **[N10]** [Recommendation ITU-T G.8271.1/Y.1366.1 (2022) Amendment 2 (01/24)](https://www.itu.int/rec/T-REC-G.8271.1/en): "Network limits for time synchronization in packet networks with full timing support from the network".
+- **[N11]** [Recommendation ITU-T G.8271.2/Y.1366.2 (2021) Amendment 1 (11/22)](https://www.itu.int/rec/T-REC-G.8271.2/en): "Network limits for time synchronization in packet networks with partial timing support from the network".
+- **[N12]** [Recommendation ITU-T G.8272/Y.1367 (2018) Amendment 2 (11/22)](https://www.itu.int/rec/T-REC-G.8272/en): "Timing characteristics of primary reference time clocks".
+- **[N13]** [Recommendation ITU-T G.8272.1/Y.1367.1 (01/24)](https://www.itu.int/rec/T-REC-G.8272.1/en): "Timing characteristics of enhanced primary reference time clocks".
+- **[N14]** [Recommendation ITU-T G.8273/Y.1368 (06/23)](https://www.itu.int/rec/T-REC-G.8273/en): "Framework of phase and time clocks".
+- **[N15]** [Recommendation ITU-T G.8273.2/Y.1368.2 (06/23)](https://www.itu.int/rec/T-REC-G.8273.2/en): "Timing characteristics of telecom boundary clocks and telecom time synchronous clocks for use with full timing support from the network".
+- **[N16]** [Recommendation ITU-T G.8273.3/Y.1368.3 (10/2020)](https://www.itu.int/rec/T-REC-G.8273.3/en): "Timing characteristics of telecom transparent clocks for use with full timing support from the network".
+- **[N17]** [Recommendation ITU-T G.8275/Y.1369 (01/24)](https://www.itu.int/rec/T-REC-G.8275/en): "Architecture and requirements for packet-based time and phase distribution".
+- **[N18]** [Recommendation ITU-T G.8275.1/Y.1369.1 (2022) Amendment 1 (01/24)](https://www.itu.int/rec/T-REC-G.8275.1/en): "Precision time protocol telecom profile for phase/time synchronization with full timing support from the network".
+- **[N19]** [Recommendation ITU-T G.811 (09/1997)](https://www.itu.int/rec/T-REC-G.811/en): "Timing characteristics of primary reference clocks".
+- **[N20]** [Recommendation ITU-T G.812 (06/2004)](https://www.itu.int/rec/T-REC-G.812/en): "Timing requirements of slave clocks suitable for use as node clocks in synchronization networks".
 
-4.3 Informative References
-- O-RAN O-Cloud Notification API v2
-- CloudEvents v1.0 specification
-
----
-
-## Clarifications
-
-### Session 2026-06-30
-- Q: Should ts2phc and phc2sys maintain a specific relative ordering now that both require PTPSourceQualified, or start concurrently? → A: phc2sys starts first (step 2), then ts2phc (step 3) — ts2phc depends on phc2sys for ToD
-- Q: Should ts2phc restart after a crash also require PTPSourceQualified, or bypass the precondition? → A: Restart bypasses the precondition (restart immediately, same as current bypass rule)
-- Q: How should the spec structurally accommodate multiple clock-type startup orders? → A: Each clock-type spec defines its own startup order; T-TSC spec links to T-BC section 9.2
-- Q: Should the Guard Condition column in 6.4 include inline descriptions, or is reordering sections (diagram → definitions → conditions → table) sufficient? → A: Reorder only — proximity is sufficient
-- Q: Should upstream port switchover and ptp4l[TR] crash have aligned event suppression behavior? → A: Yes — both use `processDowntimeThresholds.ptp4l` to suppress holdover events if resolved within threshold
-- Q: Should the behavioral contract be a standalone section or distributed across config/observability? → A: Standalone section (§13 "User Contract") with Inputs/Outputs tables referencing detailed sections. Tiered configuration model (Tier 1/2/3) rejected in favor of three concerns: user intent, hardware config, K8s status
-- Q: Should the user intent section define the full cross-clock-type model or T-BC only? → A: Full intent model (clock type, compliance class, PTP profile) defined here; other specs reference it
-- Q: Which K8s observability elements to adopt from T-GM? → A: PtpConfig.status and Kubernetes events; not HardwarePtpDevice or health probes
-
-### Session 2026-07-07
-- Q: Should PTPSourceQualified be promoted from FFS to a documented baseline, and if so, kept conflated with InSync or separated? → A: Promote as-is (conflated with InSync). Document current moving-average implementation as baseline. Note that this gate may become obsolete with ptp4l S3 servo state integration.
-- Q: Should HoldoverCapable follow the same FFS-to-baseline promotion pattern as PTPSourceQualified? → A: Yes — promote fallback (HoldoverCapable ≡ HoldoverDataValid) as baseline. Future refinement with FFO-based syntonization criteria is a must for general availability.
-- Q: Does T4 (Locked→Free-Run) fire on both paths (offset spike OR source-lost-and-not-holdover-capable), or offset spike only? → A: Both paths as written. 
-
----
+### 4.3 Informative References
+- **[I1]** [O-RAN O-Cloud Notification API Specification for Event Consumers 4.0, June 2024 R003](https://specifications.o-ran.org/)
+- **[I2]** [O-RAN Control, User and Synchronization Plane Specification 21.0, June 2026, R0005](https://specifications.o-ran.org/)
+- **[I3]** [CloudEvents Specification v1.0](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md)
+- **[I4]** [O-RAN Fronthaul Interoperability Test Specification (IOT), O-RAN.WG4.TS.IOT.0-R005-v16.00](https://specifications.o-ran.org/): referenced for S-Plane interoperability test methodology (PRTC-referenced external measurement, startup/nominal/degraded test structure) informing the measurement methodology in [§15](#15-performance-requirements-specification).
 
 ## 5. System Scope and Context
 
-5.1 Clock Types in Scope
+### 5.1 Clock Types in Scope
 - T-BC (Telecom Boundary Clock): receives synchronization upstream, distributes downstream
 
 For T-TSC (Telecom Time Synchronous Clock) requirements, see [T-TSC spec](../ttsc/spec.md).
 
-5.2 Supported Topologies
+#### 5.1.1 O-RAN LLS Deployment Context
+
+Per O-RAN WG4 TS CUS [[I2]](#43-informative-references) [[I1]](#43-informative-references) §11.2.2, the T-BC is applicable to the **LLS-C1**, **LLS-C2**, and **LLS-C3** low-level split synchronization configurations. **LLS-C4** is not applicable — the reference is provided locally (e.g. GNSS) with no transport network involvement, hence no boundary clocks in the chain.
+
+> **Scope note**: Only **LLS-C1**, **LLS-C2**, and **LLS-C3**  with full timing support are in scope for this specification. No other LLS configurations are considered.
+
+The T-BC role differs per configuration:
+
+- **LLS-C1 / LLS-C2**: the **O-DU embeds a T-BC** ([ITU-T G.8273.2](#42-normative-references)) and is part of the synchronization chain toward the O-RU
+- **LLS-C3**: the **fronthaul switches** are the T-BCs (or T-TCs) on the path from PRTC/T-GM to the O-RU; the O-DU is not required in the chain
+
+```
+Configuration LLS-C1 — direct connection, no switches:
+
+  [PRTC] ──(PTP)──► [O-DU: T-BC]       O-DU embeds T-BC ([ITU-T G.8273.2](#42-normative-references))
+                        │              Timing distributed O-DU site → O-RU site
+                        │              direct connection (no Ethernet switches)
+                        ▼
+                    [O-RU: T-TSC*]
+```
+
+```
+Configuration LLS-C2 — O-DU in chain, one or more switches allowed:
+
+  [PRTC] ──(PTP)──► [O-DU: T-BC]       O-DU embeds T-BC
+                        │              Fronthaul network (mesh/ring/tree/spur)
+                        ▼
+                 [SW: T-BC / T-TC] ──► [O-RU: T-TSC*]
+                        │
+                        ▼
+                 [SW: T-BC / T-TC] ──► [O-RU: T-TSC*]
+
+  Only one active timeTransmitter per BTCA; a second O-DU path may
+  serve as backup synchronization reference.
+```
+
+```
+Configuration LLS-C3 — PRTC/T-GM directly to O-RU:
+
+  central / aggregation site                  O-RU site
+  [PRTC/T-GM] ──(PTP)──► [SW: T-BC] ~~~~~► [O-RU: T-TSC*]
+                        │
+                     (one or more switches)
+
+  Timing distributed PRTC/T-GM → O-RU; O-DU not required on the
+  synchronization path.
+```
+
+### 5.2 Supported Topologies
 - Single-NIC T-BC (one NIC with TR + TT ports)
 - Multi-NIC T-BC (2-NIC and 3-NIC fan-out configurations)
 - Phase / frequency (optional) transfer between NICs in multi-NIC T-BC configurations
 
-5.3 SyncE (Synchronous Ethernet) Role
+### 5.3 SyncE ([Synchronous Ethernet](#41-abbreviations-and-acronyms)) Role
 
-SyncE provides physical layer frequency assistance to the T-BC. When available, SyncE improves holdover performance by providing a frequency reference traceable to a Primary Reference Clock (PRC), enabling the DPLL to maintain better frequency accuracy during PTP source loss.
+[SyncE](#41-abbreviations-and-acronyms) ([ITU-T G.8264](#42-normative-references)) provides physical layer frequency assistance to the T-BC. When available, [SyncE](#41-abbreviations-and-acronyms) improves holdover performance by providing a frequency reference traceable to a Primary Reference Clock (PRC; [ITU-T G.811](#42-normative-references) / [G.8272](#42-normative-references)), enabling the [DPLL](#41-abbreviations-and-acronyms) to maintain better frequency accuracy during PTP source loss.
 
-- SyncE is **optional** — the T-BC must operate correctly without SyncE (unassisted holdover)
-- When SyncE is configured, the DPLL locks to both PTP (phase) and SyncE (frequency) sources
-- SyncE state (EEC Locked/Holdover/Freerun) influences the `frequencyTraceable` flag in announce messages
-- SyncE lock state is reported via the `event.sync.synce-status.synce-state-change` event (O-RAN 7.2.3.9)
-- SyncE clock quality changes are reported via `event.sync.synce-status.synce-clock-quality-change` (O-RAN 7.2.3.11)
+- [SyncE](#41-abbreviations-and-acronyms) is **optional** and not supported in the current version of the requirements. T-BC must operate correctly without [SyncE](#41-abbreviations-and-acronyms) (unassisted holdover)
 
-5.4 Platform Context
+#### Future additions - not in the current scope
+- When [SyncE](#41-abbreviations-and-acronyms) is configured, the [DPLL](#41-abbreviations-and-acronyms) locks to both PTP (phase) and [SyncE](#41-abbreviations-and-acronyms) (frequency) sources
+- [SyncE](#41-abbreviations-and-acronyms) state (EEC Locked/Holdover/Freerun; [ITU-T G.8262](#42-normative-references) / [G.8262.1](#42-normative-references)) influences the `frequencyTraceable` flag in announce messages
+- [SyncE](#41-abbreviations-and-acronyms) lock state is reported via the `event.sync.synce-status.synce-state-change` event ([O-RAN O-Cloud Notification API [I1] §7.2.3.9](#43-informative-references))
+- [SyncE](#41-abbreviations-and-acronyms) clock quality changes are reported via `event.sync.synce-status.synce-clock-quality-change` ([O-RAN O-Cloud Notification API [I1] §7.2.3.11](#43-informative-references))
+
+### 5.4 Platform Context
 - Kubernetes-managed, operator-driven deployment
 - DaemonSet-based per-node daemon lifecycle
 - HTTP server for event subscription and metrics access
@@ -197,7 +289,7 @@ A T-BC may be configured with multiple upstream (TR) ports on a single NIC for r
 **Behavioral requirements for redundant upstream ports:**
 
 - The ptp4l[TR] instance operates on all configured upstream ports simultaneously
-- The Alternate Best Master Clock Algorithm (A-BMCA) per G.8275.1 selects the active upstream source
+- The Alternate Best Master Clock Algorithm (A-BMCA) per [G.8275.1](#42-normative-references) selects the active upstream source
 - `ValidSourceAvailable` is TRUE when **at least one** upstream port ptp4l servo is in the S2/S3 (SLAVE) state
 - `NoValidSourceAvailable` is TRUE only when **all** upstream ports have lost SLAVE state
 - During a switchover (one port loses SLAVE, A-BMCA promotes another), there is a brief gap where no port is SLAVE. Entering holdover during this gap is correct because the DPLL is not being disciplined by PTP, and the ptp4l servo is not in the S2/S3 (SLAVE) state. When the new port reaches SLAVE, the PTPSourceQualified filter confirms stability before exiting holdover
@@ -240,19 +332,19 @@ A T-BC may be configured with multiple upstream (TR) ports on a single NIC for r
 
 ### 6.2 State Definitions
 
-The T-BC supports four clock states for unassisted holdover. State names and semantics are derived from ITU-T G.8275 (2024) Amd.1, Section VIII.2.
+The T-BC supports four clock states for unassisted holdover. State names and semantics are derived from [ITU-T G.8275](#42-normative-references) (2024) Amd.1, Section VIII.2.
 
-**Free-Run** — The PTP clock has never been synchronized to a time source, or is in the process of synchronizing but has not yet reached acceptable accuracy. This state combines two modes from G.8275 Amd.1:
+**Free-Run** — The PTP clock has never been synchronized to a time source, or is in the process of synchronizing but has not yet reached acceptable accuracy. This state combines two modes from [G.8275](#42-normative-references) Amd.1:
 - *"The PTP clock has never been synchronized to a time source and is not in the process of synchronizing to a time source"*
 - *"The PTP clock is in the process of synchronizing to a time source. The duration and functionality of this mode is implementation specific."*
 
 In the Free-Run state the system is trying to acquire frequency and phase from the reference (if available) and to reach the acceptable accuracy defined by the InSync condition parameters. Clock class: **248**.
 
-**Locked** — The PTP clock is synchronized to a time source and is within internal acceptable accuracy. Per G.8275 Amd.1: *"The PTP clock is synchronized to a time source and is within some internal acceptable accuracy."* While in the Locked state, the TR port must be continuously monitored for Announce timer expiry and phase offset threshold violations. Clock class: **forwarded from upstream GM**.
+**Locked** — The PTP clock is synchronized to a time source and is within internal acceptable accuracy. Per [G.8275](#42-normative-references) Amd.1: *"The PTP clock is synchronized to a time source and is within some internal acceptable accuracy." While in the Locked state, the TR port must be continuously monitored for Announce timer expiry and phase offset threshold violations. Clock class: **forwarded from upstream GM**.
 
-**Holdover-In-Spec** — The PTP clock has lost its synchronization source but is maintaining performance within the desired specification using information obtained while previously synchronized. Per G.8275 Amd.1: *"The PTP clock is no longer synchronized to a time source and is using information obtained while it was previously synchronized [...] in order to maintain performance within the desired specification. The node may be relying solely on its own facilities for holdover or may use something like a frequency input from the network to achieve a holdover of time and/or phase."* Clock class: **135**.
+**Holdover-In-Spec** — The PTP clock has lost its synchronization source but is maintaining performance within the desired specification using information obtained while previously synchronized. Per [G.8275](#42-normative-references) Amd.1: *"The PTP clock is no longer synchronized to a time source and is using information obtained while it was previously synchronized [...] in order to maintain performance within the desired specification. The node may be relying solely on its own facilities for holdover or may use something like a frequency input from the network to achieve a holdover of time and/or phase." Clock class: **135**.
 
-**Holdover-Out-Of-Spec** — The PTP clock has lost its synchronization source and can no longer maintain performance within the desired specification. Per G.8275 Amd.1: *"The PTP clock is no longer synchronized to a time source and [...] it is unable to maintain performance within the desired specification."* Clock class: **165**.
+**Holdover-Out-Of-Spec** — The PTP clock has lost its synchronization source and can no longer maintain performance within the desired specification. Per [G.8275](#42-normative-references) Amd.1: *"The PTP clock is no longer synchronized to a time source and [...] it is unable to maintain performance within the desired specification." Clock class: **165**.
 
 ### 6.3 State Transition Conditions
 
@@ -260,7 +352,7 @@ The following conditions govern transitions between states. Each condition is ev
 
 | Condition Name | Definition | Parameters |
 | :--- | :--- | :--- |
-| **ValidSourceAvailable** | The ptp4l servo on at least one of the configured upstream (TR) ports has reached the S2 (SLAVE) state as defined in IEEE 1588. S3 is also accepted where applicable. This is the logical inverse of NoValidSourceAvailable | — |
+| **ValidSourceAvailable** | The ptp4l servo on at least one of the configured upstream (TR) ports has reached the S2 (SLAVE) state as defined in [IEEE 1588](#42-normative-references). S3 is also accepted where applicable. This is the logical inverse of NoValidSourceAvailable | — |
 | **NoValidSourceAvailable** | No upstream (TR) port ptp4l servo is in the S2/S3 (SLAVE) state. This occurs on Announce timer expiry or port state change away from SLAVE | — |
 | **PTPSourceQualified** | The upstream PTP source has been validated as stable enough to enable hardware sync direction (DPLL inputs) and to gate process startup (phc2sys, ts2phc — see §9.2). Currently equivalent to the InSync condition: a moving-average filter (window size 64, ~4 seconds) of ptp4l offsets compared against `inSyncConditionThreshold`. This conflation is intentional for the current release — the same filter and threshold that declare InSync also qualify the source for hardware activation and process startup. **Note**: this gate may become obsolete if ptp4l S3 servo state integration provides a native convergence signal, removing the need for a separate qualification filter | `inSyncConditionThreshold` |
 | **InSync** | ValidSourceAvailable AND worst-case phase offset (across ptp4l, DPLL, ts2phc measurement points) ≤ inSyncConditionThreshold for inSyncConditionTimes consecutive samples AND all PPS DPLLs in "Locked Holdover Acquired" | `inSyncConditionThreshold`, `inSyncConditionTimes` |
@@ -312,7 +404,7 @@ All the states and transitions in the state machine above are enabled by default
 | Constraint | Value / Source |
 | :--- | :--- |
 | State transition event latency | Events must be published within **1 second** of the state transition |
-| Announce message update latency | Announce content must reflect the new state within **1 second** after transition. Note: IEEE1588-2019, Section 9.6 permits some lack of coherence between announce messages on different TT ports: "Unless otherwise stated in the standard or the applicable PTP Profile, PTP messages transmitted by different PTP Ports of a PTP Instance may reflect the updated dataset values at different times." The **1 second** interval is FFS until a stricter requirement  is determined |
+| Announce message update latency | Announce content must reflect the new state within **one announce interval** after transition. Note: [IEEE 1588-2019](#42-normative-references), Section 9.6 permits some lack of coherence between announce messages on different TT ports: "Unless otherwise stated in the standard or the applicable PTP Profile, PTP messages transmitted by different PTP Ports of a PTP Instance may reflect the updated dataset values at different times." |
 | Convergence time for re-lock | FFS — depends on servo algorithm and offset at re-acquisition |
 | InSync filter window | `inSyncConditionTimes` consecutive samples below `inSyncConditionThreshold` |
 
@@ -334,8 +426,9 @@ The industry accepted model for a clocktime error ΔT(t) as a function of time i
 #### 6.8.2 The simplified holdover model - FFS
 For the practical application, where the stochastic part and the initial frequency offset part are hard to estimate, a simpler holdover model is sufficient. It relies on the manufacturer provided value for the maximum holdover time and the maximum offset drifted during this time:
 
-ΔT(t) = S·t + ½·A·t²
+ΔT(t) = T₀ + S·t + ½·A·t²
 
+The T₀ value is the initial offset at the moment the source is lost, plus any offsets that might occur during transitions to / from holdover.
 The maximum values for ΔT and t are provided by the manufacturer as maximum holdover time and maximum offset drifted during this time. For example there are "8hours holdover module" and "4 hours holdover module", while the ΔT reached during this time is 1500ns. The S value is the slope of the linear part of the model, which is the maximum offset drift rate. The A value is oscillator aging component of the model, which is becoming significant at a longer holdover times
 
 The model above can be sufficient for the practical application assuming the clocks are **fairly well syntonized**, so the initial frequency offset is within the bounds assumed by the manufacturer when specifying the maximum holdover time for the oscillator. This syntonization criteria, when fulfilled, makes the system **holdover capable** at the "source lost" event. Current baseline: HoldoverCapable is equivalent to HoldoverDataValid (all PPS DPLLs in LHAQ). **GA REQUIREMENT**: for general availability, this must be refined to include FFO-based syntonization criteria — verifying that the OCXO frequency offset is within manufacturer-specified bounds for a qualifying period before certifying holdover capability (see §6.3 HoldoverCapable).
@@ -345,7 +438,7 @@ Assuming we have a "8hours holdover module" with 1500ns maximum offset drifted d
 
 S = (ΔT(max t) - ½·A·(max t)²) / (max t) 
 Assuming T₀ = 0, the aging component is (in days) 0.5 * 0.3E-9 * (1/3) * (1/3) = 0.15 E-9 / 9 = 0.0166E-9 days, or 0.01666 E-9* 86400s = 1439ns, **which almost entirely consumes the budget of 1500ns for the holdover time**.
-S = (1500ns - 1439ns ) / 8hours = 61ns / 28800s = 0.0000021ns/s - a negligible value. Hence the recommendation for the holdover offset calculation is to usse the simplified model with the linear component ignored
+S = (1500ns - 1439ns ) / 8hours = 61ns / 28800s = 0.002118 ns/s (2.118 ps/s) — a negligible value. Hence the recommendation for the holdover offset calculation is to use the simplified model with the linear component ignored
 
 #### 6.8.4 Oscillator on-time requirement
 Oscillator performance is guaranteed only after a sufficient power on time. The required power-on time is from 10 to 100 hours, depending on the preceding power off time. Reference: [OX-2211-EAE-5000-10M0000000.pdf](https://ww1.microchip.com/downloads/aemDocuments/documents/VOP/ProductDocuments/DataSheets/OX-2211-EAE-5000-10M0000000.pdf)
@@ -365,6 +458,24 @@ Upon holdover entry, the system should estimate the offset as follows:
 Upon holdover entry, the system should estimate the offset as follows:
 - If the system is **HoldoverCapable**, the offset is estimated as ΔT(t) = T₀ + S·t with a linear component S = 104 ps/s
 - If the system is not **HoldoverCapable**, the offset can't be estimated and the system should enter the Free-Run state.
+
+### 6.9 Resiliency Requirements
+
+This section documents unusual but realistic operating conditions. Each scenario defines the **trigger**, **state transition(s)**, **events (E1–E4)**, **announce behavior**, and **metrics** expected from a compliant implementation. See also [§5.6](#56-upstream-port-redundancy) and [§9.5](#95-t-bc-behavior-on-process-failure).
+
+| Scenario | Trigger | State transition(s) | E1 / E2 / E3 / E4 | Announce | Metrics |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Upstream port flapping** | Rapid SLAVE loss and reacquire on redundant TR ports (A-BMCA switchover) | Locked → Holdover-In-Spec when all TR ports lose SLAVE; Holdover-In-Spec → Locked when InSync met on new port | If gap &lt; `processDowntimeThresholds.ptp4l`: suppress E1/E2 toggles; else E1=HOLDOVER, E2=135, E4=worst-of | Class 135 during gap; restore GM IWF on re-lock | `openshift_ptp_interface_role` flaps; clock_state reflects holdover |
+| **Brief upstream loss** | Upstream unavailable &lt; `processDowntimeThresholds.ptp4l` (including switchover gap) | May enter holdover internally; no external state-change if recovered in time | **Suppressed** E1/E2 if within threshold | No persistent announce change if suppressed | Transient offset spike in metrics only |
+| **Offset spike while Locked** | Any monitored offset exceeds `LocalMaxHoldoverOffSet` while Locked | Locked → Free-Run (T4) | E1=FREERUN, E2=248, E4=FREERUN | clockClass 248, local GM | `openshift_ptp_offset_ns` exceeds threshold |
+| **Source lost, not HoldoverCapable** | NoValidSourceAvailable AND NOT HoldoverCapable | Locked → Free-Run (T4), not T3 | E1=FREERUN, E2=248, E4=FREERUN | clockClass 248 | DPLL not in LHAQ |
+| **ptp4l[TR] crash** | ptp4l[TR] process exits | Same as source loss → holdover if HoldoverCapable | E1/E2 per holdover rules; **E3 must NOT fire** | Per holdover announce rules | process_status DOWN then UP |
+| **phc2sys / ts2phc brief outage** | Process crash, restart within respective `processDowntimeThresholds` | Composite T-BC state unchanged if upstream OK | **No** E1/E2/E3 toggle if within threshold | Unchanged | process_restart_count increments |
+| **ptp4l[TT] crash** | ptp4l[TT] process exits | TT ports report Free-Run; aggregate T-BC may stay Locked if upstream OK | E1 toggle FREERUN→LOCKED on TT recovery (per §9.5) | TT may show class 248 until recovery | interface_role MASTER→FAULTY→MASTER |
+| **Re-lock after extended holdover** | InSync met after Holdover-In-Spec or Out-Of-Spec | Holdover → Locked (T5/T8) | E1=LOCKED, E2=from GM, E4=worst-of | Fresh upstream GM via IWF; stepsRemoved+1; **no stale holdover params** | clock_class from GM |
+| **Dual-Upstream Switchover Quality Discontinuity** | Switchover between redundant TR ports (Port A → Port B) where upstream GMs differ | Locked → Holdover-In-Spec during switchover gap; Holdover-In-Spec → Locked on Port B InSync | Suppressed if gap < downtime threshold; else E1/E2 emitted | Class 135 during gap; PMC updates downstream Announce to Port B GM data upon re-lock | `openshift_ptp_interface_role` updates |
+| **Leap Second Execution during Holdover** | Pending leap second event occurs while T-BC is in Holdover state | T-BC remains in Holdover state | No state-change events | Advertise last known leap second flags and update `currentUtcOffset` locally | Metric offsets reflect UTC step |
+
 ---
 
 ## 7. Synchronization Direction and Hardware Reconfiguration
@@ -377,7 +488,7 @@ The pin state changes are triggered by T-BC state transitions (section 6.4). Pin
 
 WPC uses four DPLL-side pins (CVL-SDP20 through CVL-SDP23) and PHC-side SMA/SDP pins. The key sync-direction pins are CVL-SDP22 (PPS input to DPLL) and CVL-SDP23 (PPS output from DPLL).
 
-**7.1.1 Initialization / Free-Run state**
+#### 7.1.1 Initialization / Free-Run state
 
 | Pin | Target | State | Purpose |
 | :--- | :--- | :--- | :--- |
@@ -388,7 +499,7 @@ WPC uses four DPLL-side pins (CVL-SDP20 through CVL-SDP23) and PHC-side SMA/SDP 
 | SMA2/SDP22 | PHC | TX output, ch2, 1PPS period | PHC outputs 1PPS on SMA2 for external use |
 | GNSS-1PPS | DPLL | Disabled (priority 255) | GNSS input — disabled for T-BC |
 
-**7.1.2 Locked state (PTPSourceQualified — see 6.3)**
+#### 7.1.2 Locked state (PTPSourceQualified — see 6.3)
 
 PHC disciplines DPLL: the E810 PHC 1PPS output (SMA2/SDP22) is already active from initialization. The only change is enabling the DPLL PPS input to receive it. This transition fires when the PTPSourceQualified condition is met (see section 6.3).
 
@@ -398,7 +509,7 @@ PHC disciplines DPLL: the E810 PHC 1PPS output (SMA2/SDP22) is already active fr
 | CVL-SDP22 | DPLL | PPS priority → **0** (enabled), EEC is disabled | DPLL accepts 1PPS input from PHC |
 | CVL-SDP23 | DPLL | Remains **disconnected** | DPLL output not needed — PHC is master |
 
-**7.1.3 Holdover (PTP source lost)**
+#### 7.1.3 Holdover (PTP source lost)
 
 DPLL disciplines PHC (through ts2phc): the PPS input is disabled and the DPLL output is enabled. The DPLL holds frequency on its internal OCXO.
 
@@ -407,7 +518,7 @@ DPLL disciplines PHC (through ts2phc): the PPS input is disabled and the DPLL ou
 | CVL-SDP22 | DPLL | PPS priority → **255** (disabled) | Stop PHC from disciplining DPLL |
 | CVL-SDP23 | DPLL | **Connected** (output enabled) | DPLL 1PPS output disciplines PHC |
 
-**7.1.4 Return to Locked (leaving holdover)**
+#### 7.1.4 Return to Locked (leaving holdover)
 
 Reverse of holdover entry — restores PHC→DPLL direction:
 
@@ -420,7 +531,7 @@ Reverse of holdover entry — restores PHC→DPLL direction:
 
 GNR-D uses NAC PHC-side pins (SDP0, SDP2) to output 1PPS and 1kHz signals to the DPLL, and DPLL-side pins (REF0P, REF0N) as phase/frequency references. Pin board labels are platform-specific (Dell: `ETH01_SDP_TIMESYNC_0/2`, HPE: `1PPS_IN0/1`).
 
-**7.2.1 Initialization / Free-Run state**
+#### 7.2.1 Initialization / Free-Run state
 
 | Pin | Target | State | Purpose |
 | :--- | :--- | :--- | :--- |
@@ -430,7 +541,7 @@ GNR-D uses NAC PHC-side pins (SDP0, SDP2) to output 1PPS and 1kHz signals to the
 | REF0N | DPLL | PPS: **selectable** | DPLL ready to accept PPS input when available |
 | GNSS inputs | DPLL | Disabled | GNSS not used for T-BC |
 
-**7.2.2 Locked state (PTPSourceQualified — see 6.3)**
+#### 7.2.2 Locked state (PTPSourceQualified — see 6.3)
 
 PHC outputs 1PPS and 1kHz to DPLL via SDP0/SDP2. DPLL locks on these signals. This transition fires when the PTPSourceQualified condition is met (see section 6.3).
 
@@ -440,7 +551,7 @@ PHC outputs 1PPS and 1kHz to DPLL via SDP0/SDP2. DPLL locks on these signals. Th
 | SDP2 | PHC (NAC) | TX output, ch2, **1kHz** period | PHC 1kHz output drives DPLL frequency lock |
 | REF0P/REF0N | DPLL | Remain **selectable** | DPLL accepts PHC signals |
 
-**7.2.3 Holdover (PTP source lost)**
+#### 7.2.3 Holdover (PTP source lost)
 
 PHC outputs are disabled. DPLL holds frequency on its internal oscillator (OCXO). Unlike WPC, there is no explicit DPLL→PHC output pin; the DPLL free-runs and ToD is maintained by ts2phc from the system clock.
 
@@ -450,7 +561,7 @@ PHC outputs are disabled. DPLL holds frequency on its internal oscillator (OCXO)
 | SDP2 | PHC (NAC) | **Disabled** (func=0) | Stop PHC 1kHz output to DPLL |
 | REF0P/REF0N | DPLL | Remain **selectable** (unchanged) | Ready to resume when PHC outputs restart |
 
-**7.2.4 Return to Locked (leaving holdover)**
+#### 7.2.4 Return to Locked (leaving holdover)
 
 PHC outputs are re-enabled with 1PPS and 1kHz periods. DPLL re-locks on PHC signals.
 
@@ -575,7 +686,7 @@ The T-BC announces degraded holdover. Time is no longer traceable. Clock accurac
 ### 8.6 Clock Accuracy Estimation in Holdover
 
 - The clock accuracy in Holdover-In-Spec is derived from the oscillator drift ramp model (See 6.8.1 for more details)
-- The corresponding IEEE 1588 `clockAccuracy` enumeration value is selected based on the estimated offset magnitude
+- The corresponding [IEEE 1588](#42-normative-references) `clockAccuracy` enumeration value is selected based on the estimated offset magnitude
 - Programmability: users define oscillator parameters (drift slope, holdover timeout) to match their hardware
 - GNR-D platforms may discover frequency source accuracy from DPLL hardware capabilities (FFS)
 
@@ -691,7 +802,7 @@ The clock state for PHC and DPLL clocks is aliased by the related network interf
 | Metric | Type | Labels | Values | Description |
 | :--- | :--- | :--- | :--- | :--- |
 | `openshift_ptp_clock_state` | gauge | `iface`, `node`, `process` | 0=FREERUN, 1=LOCKED, 2=HOLDOVER | Clock state per interface and process. Process values: `T-BC` (aggregate), `ptp4l`, `ts2phc`, `dpll`, `phc2sys` |
-| `openshift_ptp_clock_class` | gauge | `config`, `node`, `process` | 6, 7, 135, 165, 248, 255 | Current clock class. 6=Locked, 7=PRC unlocked in-spec, 135=T-BC holdover in-spec, 165=T-BC holdover out-of-spec, 248=Free-Run, 255=Slave Only |
+| `openshift_ptp_clock_class` | gauge | `config`, `node`, `process` | 6, 7, 135, 165, 248, 255 | Current clock class. 6=Locked (GM), 7=PRC unlocked in-spec (T-GM holdover), 135=T-BC holdover in-spec, 165=T-BC holdover out-of-spec, 248=Free-Run, 255=Slave Only |
 
 #### 11.1.2 Offset and Delay
 
@@ -808,25 +919,25 @@ The system must emit Kubernetes Events on the `PtpConfig` resource for operation
 
 ## 12. CloudEvents and Notification Behavior
 
-12.1 Event Types
+### 12.1 Event Types
   - PTP Lock State Change: LOCKED / FREERUN / HOLDOVER with offset and upstream interface
   - PTP Clock Class Change: clock class value transitions (6, 7, 135, 140, 165, 248)
   - OS Clock Sync State: system clock synchronization status
   - GNSS State Change: GPS receiver status (when applicable)
   - Overall Sync State: aggregated synchronization assessment
 
-12.2 Event Generation Rules
+### 12.2 Event Generation Rules
   - Edge-triggered: events published only on state transitions, not periodically
   - Required data payload per event type (offset, state, interface, clock class)
   - Event ordering and causality guarantees
 
-12.3 Event Delivery Contract
+### 12.3 Event Delivery Contract
   - CloudEvents v1.0 envelope format
-  - O-RAN O-Cloud Notification API v2 compliance
+  - [O-RAN O-Cloud Notification API v2](#43-informative-references) compliance
   - Resource address hierarchy (/sync/ptp-status/lock-state, etc.)
   - Subscription model (endpoint URI + resource address filter)
 
-12.4 Event Data Models
+### 12.4 Event Data Models
   - PTP Lock State event payload structure
   - Clock Class event payload structure
   - OS Clock Sync event payload structure
@@ -834,11 +945,11 @@ The system must emit Kubernetes Events on the `PtpConfig` resource for operation
 
 ### 12.5 Events Per State Transition
 
-The following matrix defines which O-RAN O-Cloud Notification API v4.00 events must be generated for each T-BC state transition. Event types and resource addresses are per O-RAN.WG6.O-Cloud Notification API v04.00, section 7.2.3.
+The following matrix defines which [O-RAN O-Cloud Notification API v4.00](#43-informative-references) events must be generated for each T-BC state transition. Event types and resource addresses are per [O-RAN.WG6.O-Cloud Notification API v04.00](#43-informative-references), section 7.2.3.
 
-**O-RAN event types relevant to T-BC:**
+**[O-RAN](#43-informative-references) event types relevant to T-BC:**
 
-| # | Event Type | Resource Address | value_type | O-RAN Section |
+| # | Event Type | Resource Address | value_type | [O-RAN](#43-informative-references) Section |
 | :--- | :--- | :--- | :--- | :--- |
 | E1 | `event.sync.ptp-status.ptp-state-change` | `/sync/ptp-status/lock-state` | enumeration (LOCKED/HOLDOVER/FREERUN) | 7.2.3.3 |
 | E2 | `event.sync.ptp-status.ptp-clock-class-change` | `/sync/ptp-status/clock-class` | metric (Uint8) | 7.2.3.10 |
@@ -868,7 +979,7 @@ The following matrix defines which O-RAN O-Cloud Notification API v4.00 events m
 
 **E3: OS Clock Sync State**
 
-Per O-RAN O-Cloud Notification API v04.00, Table 37, E3 reports the synchronization state of the Operating System real-time clock (`CLOCK_REALTIME`). The E3 LOCKED state explicitly requires synchronization to a **"traceable & valid time/phase source"** — not just phc2sys operational success.
+Per [O-RAN O-Cloud Notification API v04.00](#43-informative-references), Table 37, E3 reports the synchronization state of the Operating System real-time clock (`CLOCK_REALTIME`). The E3 LOCKED state explicitly requires synchronization to a **"traceable & valid time/phase source"** — not just phc2sys operational success.
 
 E3 is determined by two factors:
 
@@ -877,7 +988,7 @@ E3 is determined by two factors:
 
 **E3 state derivation:**
 
-| E1 (PTP State) | phc2sys status | E3 (OS Clock) | O-RAN Rationale |
+| E1 (PTP State) | phc2sys status | E3 (OS Clock) | [O-RAN](#43-informative-references) Rationale |
 | :--- | :--- | :--- | :--- |
 | LOCKED | offset < threshold | **LOCKED** | OS clock synchronized to traceable & valid source |
 | HOLDOVER | offset < threshold | **HOLDOVER** | OS clock in holdover — tracking a holdover-mode PHC |
@@ -897,7 +1008,7 @@ E3 is determined by two factors:
 | E1 returns to LOCKED + phc2sys offset recovers | LOCKED | Both traceability and phc2sys operation restored |
 
 Key behavioral notes:
-- E3 = LOCKED while E1 = HOLDOVER is **NOT valid** — O-RAN defines HOLDOVER as a distinct state; if PHC is in holdover, OS clock is in holdover too
+- E3 = LOCKED while E1 = HOLDOVER is **NOT valid** — [O-RAN](#43-informative-references) defines HOLDOVER as a distinct state; if PHC is in holdover, OS clock is in holdover too
 - E3 = LOCKED while E1 = FREERUN is **NOT valid** — OS clock is locked to a free-running clock with no traceable reference
 - E3 = HOLDOVER while E1 = HOLDOVER is the **correct** state — phc2sys continues disciplining from a holdover-mode PHC
 - E3 must NOT fire due to ptp4l[TR] process failure alone (see G5 in gaps.md) — the holdover mechanism should handle this as NoValidSourceAvailable, leading to E1 = HOLDOVER → E3 = HOLDOVER
@@ -929,45 +1040,45 @@ This section defines the behavioral contract between the system and its users: w
 
 The user configures the system through two Kubernetes custom resources: the `PtpConfig` (PTP software configuration and clock behavior) and the `HardwareConfig` (clock chain hardware topology). The intent declaration spans three layers.
 
-#### 13.1.1 Clock Type and IEEE 1588 Profile
+#### 13.1.1 Clock Type and [IEEE 1588](#42-normative-references) Profile
 
-The user declares the desired clock role and the IEEE 1588 PTP profile. The system derives process topology, startup order, announce behavior, and state machine semantics from this declaration.
+The user declares the desired clock role and the [IEEE 1588](#42-normative-references) PTP profile. The system derives process topology, startup order, announce behavior, and state machine semantics from this declaration.
 
 | Parameter | Values | Effect |
 | :--- | :--- | :--- |
 | `clockType` | `T-GM`, `T-BC`, `T-TSC` | Determines the set of processes started, port roles (TR/TT), announce behavior, and which state machine specification applies |
-| `ptpProfile` | IEEE 1588 profile identifier (see table below) | Determines transport, delay mechanism, BMCA variant, domain number range, and which PTP parameters are profile-mandated |
+| `ptpProfile` | [IEEE 1588](#42-normative-references) profile identifier (see table below) | Determines transport, delay mechanism, BMCA variant, domain number range, and which PTP parameters are profile-mandated |
 
-**IEEE 1588 PTP Profile taxonomy:**
+**[IEEE 1588](#42-normative-references) PTP Profile taxonomy:**
 
-IEEE 1588 defines a profile mechanism (§20.3) allowing industry organizations to specify parameter selections and optional features for specific applications. Profiles are grouped by industry:
+[IEEE 1588](#42-normative-references) defines a profile mechanism (§20.3) allowing industry organizations to specify parameter selections and optional features for specific applications. Profiles are grouped by industry:
 
 | Category | Profile | Standard | Transport | Delay | Accuracy | Clock Types |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Telecom** | Full timing support | ITU-T G.8275.1 | L2 multicast | E2E | ns-level | T-GM, T-BC, T-TSC |
-| **Telecom** | Partial timing support | ITU-T G.8275.2 | UDP unicast | E2E | ns-level | T-GM, T-BC-P, T-TSC-P |
+| **Telecom** | Full timing support | [ITU-T G.8275.1](#42-normative-references) | L2 multicast | E2E | ns-level | T-GM, T-BC, T-TSC |
+| **Telecom** | Partial timing support | [ITU-T G.8275.2](#42-normative-references) | UDP unicast | E2E | ns-level | T-GM, T-BC-P, T-TSC-P |
 | **Telecom** | Frequency only | ITU-T G.8265.1 | UDP unicast | E2E | — | OC (freq) |
-| **Telecom** | APTS | ITU-T G.8275.1 + GNSS fallback | L2 multicast | E2E | ns-level | T-GM with GNSS + PTP backup |
+| **Telecom** | APTS | [ITU-T G.8275.1](#42-normative-references) + GNSS fallback | L2 multicast | E2E | ns-level | T-GM with GNSS + PTP backup |
 | **Power** | Substation automation | IEC/IEEE 61850-9-3 | L2 multicast | P2P | µs-level | OC, BC, TC |
 | **Power** | Power system relay | IEEE C37.238-2017 | L2 multicast | P2P | µs-level | OC, BC, TC |
 | **Media** | Broadcast / IP video | SMPTE ST 2059-2 | L2/UDP | P2P | sub-ms | OC, BC |
 | **Media** | Audio-over-IP | AES67 | L2/UDP | — | sub-ms | OC, BC |
 | **TSN** | Time-Sensitive Networking | IEEE 802.1AS-2025 (gPTP) | L2 | P2P | µs-level | GM, bridge |
 | **Enterprise** | Enterprise mixed | IETF RFC 9760 | UDP | E2E | sub-ms | OC, BC |
-| **Default** | IEEE 1588 default E2E | IEEE 1588 Annex J | L2/UDP | E2E | varies | OC, BC, TC |
-| **Default** | IEEE 1588 default P2P | IEEE 1588 Annex J | L2/UDP | P2P | varies | OC, BC, TC |
+| **Default** | [IEEE 1588](#42-normative-references) default E2E | [IEEE 1588](#42-normative-references) Annex J | L2/UDP | E2E | varies | OC, BC, TC |
+| **Default** | [IEEE 1588](#42-normative-references) default P2P | [IEEE 1588](#42-normative-references) Annex J | L2/UDP | P2P | varies | OC, BC, TC |
 
 When a profile is designated, certain PTP parameters are fixed by the profile and must not be overridden by the user. The system must reject invalid combinations at admission time with an informative error identifying the violating parameter.
 
-**Example: G.8275.1 profile-mandated parameters:**
+**Example: [G.8275.1](#42-normative-references) profile-mandated parameters:**
 
 | Parameter | Mandated value | Rationale |
 | :--- | :--- | :--- |
-| `network_transport` | `L2` | G.8275.1 requires Layer 2 multicast transport |
-| `delay_mechanism` | `E2E` | G.8275.1 requires end-to-end delay measurement |
+| `network_transport` | `L2` | [G.8275.1](#42-normative-references) requires Layer 2 multicast transport |
+| `delay_mechanism` | `E2E` | [G.8275.1](#42-normative-references) requires end-to-end delay measurement |
 | `time_stamping` | `hardware` | Software timestamping is insufficient for telecom accuracy |
-| `dataset_comparison` | `G.8275.x` | Required for G.8275.1 alternate BMCA behavior |
-| `priority1` | `128` | G.8275.1 alternate BMCA ignores priority1; value must remain at 128 |
+| `dataset_comparison` | [G.8275.x](#42-normative-references) | Required for [G.8275.1](#42-normative-references) alternate BMCA behavior |
+| `priority1` | `128` | [G.8275.1](#42-normative-references) alternate BMCA ignores priority1; value must remain at 128 |
 
 **T-BC clock-type-specific mandated parameters (regardless of profile):**
 
@@ -993,7 +1104,7 @@ The user declares the target ITU-T compliance class. This affects performance th
 
 | Parameter | Values | Effect |
 | :--- | :--- | :--- |
-| `complianceClass` | `C`, `D` | Determines applicable G.8273.2 performance limits (noise generation, noise tolerance, noise transfer bandwidth). Class D imposes stricter low-pass filtered time error limits (see §15) |
+| `complianceClass` | `C`, `D` | Determines applicable [G.8273.2](#42-normative-references) performance limits (noise generation, noise tolerance, noise transfer bandwidth). Class D imposes stricter low-pass filtered time error limits (see §15) |
 
 The compliance class is informational for the state machine but constraining for performance validation. The system must expose the configured compliance class in metrics and status for external validation tools.
 
@@ -1017,7 +1128,7 @@ The system provides synchronization state and health information through multipl
 | Output Channel | Content | Consumer | Reference |
 | :--- | :--- | :--- | :--- |
 | **Prometheus metrics** | Clock state, offsets, DPLL status, interface roles, process health, thresholds | Monitoring dashboards, alerting | §11.1 |
-| **CloudEvents / O-RAN notifications** | State transitions (E1–E4), clock class changes | Event-driven consumers, O-RAN O-Cloud | §12 |
+| **[CloudEvents](#43-informative-references) / [O-RAN](#43-informative-references) notifications** | State transitions (E1–E4), clock class changes | Event-driven consumers, [O-RAN](#43-informative-references) O-Cloud | §12 |
 | **Kubernetes Events** | Clock state changes, process restarts on the PtpConfig resource | `kubectl describe`, cluster event sinks | §11.2.2 |
 | **PtpConfig.status** | Configuration errors (node, condition, diagnostic message) | Kubernetes controllers, operators | §11.2.1 |
 | **NodePtpDevice.status** | Discovered PTP devices, hardware info, per-device config status (failed/success) | Kubernetes controllers, hardware inventory | §11.2.2 |
@@ -1028,108 +1139,118 @@ The system provides synchronization state and health information through multipl
 ---
 ## 14. Functional Requirements Specification
 
+Functional requirements in this section express **testable product behavior** derived from internal interpretations of [IEEE 1588](#42-normative-references), [ITU-T G.8275.x](#42-normative-references), [O-RAN](#43-informative-references), and the normative sections (§6–§13) of this document.
+
+**Traceability conventions (§14 only)**
+
+| Column | Meaning | Link target |
+| :--- | :--- | :--- |
+| **Spec traceability** | Parent section(s) in this document that define the behavior under test | Markdown hyperlinks to §6–§13 anchors (e.g. `[§6.3 InSync](#63-state-transition-conditions)`) |
+
+Do **not** cite [ITU-T G.8273.2](#42-normative-references) in §14 traceability — use §15 for performance limits. Jira test cases (TELCOSTRAT-392) must reference FUNC-TBC* IDs.
+
 ### 14.1 State Machine — Lock Acquisition
 
 ### ID: FUNC-TBC001
 
-| Requirement ID | Traceability | Requirement text |
+| Requirement ID | Spec traceability | Requirement text |
 | :---- | :---- | :---- |
-| FUNC-TBC001-R1 | 6.2 Free-Run, 6.3 InSync | Given a T-BC is initialized in Free-Run state, when a valid upstream PTP source becomes available and the InSync condition is met, then the T-BC must transition to Locked state |
-| FUNC-TBC001-R2 | 8.2 Locked State Announce | Upon entering Locked state, announce messages on all TT ports must reflect upstream GM parameters via the inter-working function (IWF) |
+| FUNC-TBC001-R1 | [§6.2](#62-state-definitions), [§6.3 InSync](#63-state-transition-conditions) | Given a T-BC is initialized in Free-Run state, when a valid upstream PTP source becomes available and the InSync condition is met, then the T-BC must transition to Locked state |
+| FUNC-TBC001-R2 | [§8.2](#82-locked-state-announce-content) | Upon entering Locked state, announce messages on all TT ports must reflect upstream GM parameters via the inter-working function (IWF) |
 
 ### 14.2 State Machine — Holdover Entry on Source Loss
 
 ### ID: FUNC-TBC002
 
-| Requirement ID | Traceability | Requirement text |
+| Requirement ID | Spec traceability | Requirement text |
 | :---- | :---- | :---- |
-| FUNC-TBC002-R1 | 6.3 NoValidSourceAvailable, 6.4 T3 | Given a T-BC is in Locked state, when the upstream TR port loses its PTP source (NoValidSourceAvailable), then the T-BC must transition to Holdover-In-Spec, if it is holdover capable |
-| FUNC-TBC002-R2 | 7.1 / 7.2 Pin states | Upon entering holdover, the hardware sync direction must reverse (DPLL input disabled, DPLL output enabled) |
-| FUNC-TBC002-R3 | 8.3 HO-In-Spec Announce | Announce messages must reflect holdover parameters: clockClass 135, gmIdentity = local, timeTraceable = TRUE |
+| FUNC-TBC002-R1 | [§6.3](#63-state-transition-conditions), [T3](#64-state-transition-table) | Given a T-BC is in Locked state, when the upstream TR port loses its PTP source (NoValidSourceAvailable), then the T-BC must transition to Holdover-In-Spec, if it is holdover capable |
+| FUNC-TBC002-R2 | [§7.1](#71-wpc-e810-pin-states), [§7.2](#72-gnr-d-e825-pin-states) | Upon entering holdover, the hardware sync direction must reverse (DPLL input disabled, DPLL output enabled) |
+| FUNC-TBC002-R3 | [§8.3](#83-holdover-in-spec-state-announce-content) | Announce messages must reflect holdover parameters: clockClass 135, gmIdentity = local, timeTraceable = TRUE |
 
 ### 14.3 State Machine — Holdover In-Spec to Out-Of-Spec
 
 ### ID: FUNC-TBC003
 
-| Requirement ID | Traceability | Requirement text |
+| Requirement ID | Spec traceability | Requirement text |
 | :---- | :---- | :---- |
-| FUNC-TBC003-R1 | 6.3 Offset-Above-InSpecOffset, 6.4 T6 | Given a T-BC is in Holdover-In-Spec state, when the estimated phase offset exceeds MaxInSpecOffset, then the T-BC must transition to Holdover-Out-Of-Spec |
-| FUNC-TBC003-R2 | 8.4 HO-Out-Of-Spec Announce | Announce messages must reflect degraded parameters: clockClass 165, clockAccuracy = Unknown, timeTraceable = FALSE |
+| FUNC-TBC003-R1 | [§6.3](#63-state-transition-conditions), [T6](#64-state-transition-table) | Given a T-BC is in Holdover-In-Spec state, when the estimated phase offset exceeds MaxInSpecOffset, then the T-BC must transition to Holdover-Out-Of-Spec |
+| FUNC-TBC003-R2 | [§8.4](#84-holdover-out-of-spec-state-announce-content) | Announce messages must reflect degraded parameters: clockClass 165, clockAccuracy = Unknown, timeTraceable = FALSE |
 
 ### 14.4 State Machine — Holdover to Free-Run
 
 ### ID: FUNC-TBC004
 
-| Requirement ID | Traceability | Requirement text |
+| Requirement ID | Spec traceability | Requirement text |
 | :---- | :---- | :---- |
-| FUNC-TBC004-R1 | 6.3 Holdover-To-FreeRun, 6.4 T9 | Given a T-BC is in Holdover-Out-Of-Spec state, when the Holdover-To-FreeRun condition is met, then the T-BC must transition to Free-Run |
-| FUNC-TBC004-R2 | 6.3 Holdover-To-FreeRun, 6.4 T7 | Given a T-BC is in Holdover-In-Spec state, when the Holdover-To-FreeRun condition is met, then the T-BC must transition directly to Free-Run (skipping Holdover-Out-Of-Spec) |
-| FUNC-TBC004-R3 | 8.1 Free-Run Announce | Announce messages must reflect free-run parameters: clockClass 248, clockAccuracy = Unknown, timeTraceable = FALSE |
-| FUNC-TBC004-R4 | 7.1 / 7.2 Pin states | Upon entering Free-Run from holdover, the hardware sync direction must reverse back (DPLL output disabled) |
+| FUNC-TBC004-R1 | [§6.3](#63-state-transition-conditions), [T9](#64-state-transition-table) | Given a T-BC is in Holdover-Out-Of-Spec state, when the Holdover-To-FreeRun condition is met, then the T-BC must transition to Free-Run |
+| FUNC-TBC004-R2 | [§6.3](#63-state-transition-conditions), [T7](#64-state-transition-table) | Given a T-BC is in Holdover-In-Spec state, when the Holdover-To-FreeRun condition is met, then the T-BC must transition directly to Free-Run (skipping Holdover-Out-Of-Spec) |
+| FUNC-TBC004-R3 | [§8.1](#81-free-run-state-announce-content) | Announce messages must reflect free-run parameters: clockClass 248, clockAccuracy = Unknown, timeTraceable = FALSE |
+| FUNC-TBC004-R4 | [§7.1](#71-wpc-e810-pin-states), [§7.2](#72-gnr-d-e825-pin-states) | Upon entering Free-Run from holdover, the hardware sync direction must reverse back (DPLL output disabled) |
 
 ### 14.5 State Machine — Re-Lock from Holdover
 
 ### ID: FUNC-TBC005
 
-| Requirement ID | Traceability | Requirement text |
+| Requirement ID | Spec traceability | Requirement text |
 | :---- | :---- | :---- |
-| FUNC-TBC005-R1 | 6.3 InSync, 6.4 T5/T8 | Given a T-BC is in any Holdover state, when the upstream PTP source is re-acquired and the InSync condition is met, then the T-BC must transition to Locked state |
-| FUNC-TBC005-R2 | 7.1 / 7.2 Pin states | Upon re-lock, the hardware sync direction must reverse back to normal (PHC disciplines DPLL) |
-| FUNC-TBC005-R3 | 8.2 Locked State Announce | Announce messages must be restored to upstream GM IWF parameters |
+| FUNC-TBC005-R1 | [§6.3 InSync](#63-state-transition-conditions), [T5/T8](#64-state-transition-table) | Given a T-BC is in any Holdover state, when the upstream PTP source is re-acquired and the InSync condition is met, then the T-BC must transition to Locked state |
+| FUNC-TBC005-R2 | [§7.1](#71-wpc-e810-pin-states), [§7.2](#72-gnr-d-e825-pin-states) | Upon re-lock, the hardware sync direction must reverse back to normal (PHC disciplines DPLL) |
+| FUNC-TBC005-R3 | [§8.2](#82-locked-state-announce-content) | Announce messages must be restored to upstream GM IWF parameters |
 
 ### 14.6 State Machine — Emergency Free-Run on Offset Spike
 
 ### ID: FUNC-TBC006
 
-| Requirement ID | Traceability | Requirement text |
+| Requirement ID | Spec traceability | Requirement text |
 | :---- | :---- | :---- |
-| FUNC-TBC006-R1 | 6.3 Locked-To-FreeRun, 6.4 T4 | Given a T-BC is in Locked state, when the Locked-To-FreeRun condition is met, then the T-BC must transition to Free-Run (see FUNC-TBC013 for threshold and configurability details) |
-| FUNC-TBC006-R2 | 12.1 PTP Lock State Change | A PTP lock state change event must be published upon this transition |
+| FUNC-TBC006-R1 | [§6.3](#63-state-transition-conditions), [T4](#64-state-transition-table) | Given a T-BC is in Locked state, when the Locked-To-FreeRun condition is met, then the T-BC must transition to Free-Run (see FUNC-TBC013 for threshold and configurability details) |
+| FUNC-TBC006-R2 | [§12.1](#121-event-types) | A PTP lock state change event must be published upon this transition |
 
 ### 14.7 Multi-NIC — Announcement Coherence
 
 ### ID: FUNC-TBC007
 
-| Requirement ID | Traceability | Requirement text |
+| Requirement ID | Spec traceability | Requirement text |
 | :---- | :---- | :---- |
-| FUNC-TBC007-R1 | 8.7 Announce Update Timing | Given a multi-NIC T-BC, when the clock changes state or clock accuracy, then all TT ports must reflect the changes in their announce messages within 1 second after the transition |
-| FUNC-TBC007-R2 | 8.5 Key Differences | All TT ports must announce identical clockClass, clockAccuracy, gmIdentity, and timeTraceable values at any point in time |
+| FUNC-TBC007-R1 | [§8.7](#87-announce-update-timing) | Given a multi-NIC T-BC, when the clock changes state or clock accuracy, then all TT ports must reflect the changes in their announce messages within 1 second after the transition |
+| FUNC-TBC007-R2 | [§8.5](#85-key-differences-across-states) | All TT ports must announce identical clockClass, clockAccuracy, gmIdentity, and timeTraceable values at any point in time |
 
 ### 14.8 Events — State Change Notification
 
 ### ID: FUNC-TBC008
 
-| Requirement ID | Traceability | Requirement text |
+| Requirement ID | Spec traceability | Requirement text |
 | :---- | :---- | :---- |
-| FUNC-TBC008-R1 | 12.1 PTP Lock State Change | Given a monitoring system is subscribed to PTP lock state events, when the T-BC transitions between any two states, then a CloudEvents-formatted notification must be published |
-| FUNC-TBC008-R2 | 12.2 Event Generation Rules | The event must contain the new state, current offset, and interface name |
+| FUNC-TBC008-R1 | [§12.1](#121-event-types) | Given a monitoring system is subscribed to PTP lock state events, when the T-BC transitions between any two states, then a CloudEvents-formatted notification must be published |
+| FUNC-TBC008-R2 | [§12.2](#122-event-generation-rules) | The event must contain the new state, current offset, and interface name |
 
 ### 14.9 Events — Clock Class Change
 
 ### ID: FUNC-TBC009
 
-| Requirement ID | Traceability | Requirement text |
+| Requirement ID | Spec traceability | Requirement text |
 | :---- | :---- | :---- |
-| FUNC-TBC009-R1 | 12.1 PTP Clock Class Change | Given a monitoring system is subscribed to clock class change events, when the T-BC clock class changes (e.g., 6 → 135 → 165 → 248), then a clock class change event must be published with the new value |
-| FUNC-TBC009-R2 | 12.3 Event Delivery Contract | The event must conform to CloudEvents v1.0 envelope format and O-RAN O-Cloud Notification API v2 |
+| FUNC-TBC009-R1 | [§12.1](#121-event-types) | Given a monitoring system is subscribed to clock class change events, when the T-BC clock class changes (e.g., 6 → 135 → 165 → 248), then a clock class change event must be published with the new value |
+| FUNC-TBC009-R2 | [§12.3](#123-event-delivery-contract) | The event must conform to [CloudEvents v1.0](#43-informative-references) envelope format and [O-RAN O-Cloud Notification API v2](#43-informative-references) |
 
 ### 14.10 Events — Per-Transition Event Matrix Compliance
 
 ### ID: FUNC-TBC010
 
-| Requirement ID | Traceability | Requirement text |
+| Requirement ID | Spec traceability | Requirement text |
 | :---- | :---- | :---- |
-| FUNC-TBC010-R1 | 12.5, T1 | Given a T-BC completes initialization, when it enters Free-Run, then E1 must emit FREERUN, E2 must emit clock class 248, and E4 must emit FREERUN |
-| FUNC-TBC010-R2 | 12.5, T2 | Given a T-BC is in Free-Run, when it transitions to Locked, then E1 must emit LOCKED, E2 must emit the upstream GM clock class, and E4 must emit worst-of(LOCKED, current E3) |
-| FUNC-TBC010-R3 | 12.5, T3 | Given a T-BC is in Locked state, when it transitions to Holdover-In-Spec, then E1 must emit HOLDOVER, E2 must emit clock class 135, and E4 must emit worst-of(HOLDOVER, current E3) |
-| FUNC-TBC010-R4 | 12.5, T4 | Given a T-BC is in Locked state, when it transitions to Free-Run, then E1 must emit FREERUN, E2 must emit clock class 248, and E4 must emit FREERUN |
-| FUNC-TBC010-R5 | 12.5, T5 | Given a T-BC is in Holdover-In-Spec, when it transitions to Locked, then E1 must emit LOCKED, E2 must emit the upstream GM clock class, and E4 must emit worst-of(LOCKED, current E3) |
-| FUNC-TBC010-R6 | 12.5, T6 | Given a T-BC is in Holdover-In-Spec, when offset exceeds MaxInSpecOffset, then E1 must NOT fire (state remains HOLDOVER), and E2 must emit clock class 165 |
-| FUNC-TBC010-R7 | 12.5, T7 | Given a T-BC is in Holdover-In-Spec, when it transitions to Free-Run, then E1 must emit FREERUN, E2 must emit clock class 248, and E4 must emit FREERUN |
-| FUNC-TBC010-R8 | 12.5, T8 | Given a T-BC is in Holdover-Out-Of-Spec, when it transitions to Locked, then E1 must emit LOCKED, E2 must emit the upstream GM clock class, and E4 must emit worst-of(LOCKED, current E3) |
-| FUNC-TBC010-R9 | 12.5, T9 | Given a T-BC is in Holdover-Out-Of-Spec, when it transitions to Free-Run, then E1 must emit FREERUN, E2 must emit clock class 248, and E4 must emit FREERUN |
-| FUNC-TBC010-R10 | 12.5, O-RAN Table 37 | Given phc2sys is running, then E3 must reflect both phc2sys offset AND upstream traceability: E3 = LOCKED only when phc2sys OK AND E1 = LOCKED; E3 = HOLDOVER when E1 = HOLDOVER and phc2sys OK; E3 = FREERUN when E1 = FREERUN (regardless of phc2sys) or phc2sys offset exceeds threshold. E3 must NOT fire due to ptp4l[TR] process failure alone |
-| FUNC-TBC010-R11 | 12.5, Notes | Given any event type, when the value has not changed from the previously emitted value, then no event must be emitted (edge-triggered only) |
+| FUNC-TBC010-R1 | [§12.5 T1](#125-events-per-state-transition) | Given a T-BC completes initialization, when it enters Free-Run, then E1 must emit FREERUN, E2 must emit clock class 248, and E4 must emit FREERUN |
+| FUNC-TBC010-R2 | [§12.5 T2](#125-events-per-state-transition) | Given a T-BC is in Free-Run, when it transitions to Locked, then E1 must emit LOCKED, E2 must emit the upstream GM clock class, and E4 must emit worst-of(LOCKED, current E3) |
+| FUNC-TBC010-R3 | [§12.5 T3](#125-events-per-state-transition) | Given a T-BC is in Locked state, when it transitions to Holdover-In-Spec, then E1 must emit HOLDOVER, E2 must emit clock class 135, and E4 must emit worst-of(HOLDOVER, current E3) |
+| FUNC-TBC010-R4 | [§12.5 T4](#125-events-per-state-transition) | Given a T-BC is in Locked state, when it transitions to Free-Run, then E1 must emit FREERUN, E2 must emit clock class 248, and E4 must emit FREERUN |
+| FUNC-TBC010-R5 | [§12.5 T5](#125-events-per-state-transition) | Given a T-BC is in Holdover-In-Spec, when it transitions to Locked, then E1 must emit LOCKED, E2 must emit the upstream GM clock class, and E4 must emit worst-of(LOCKED, current E3) |
+| FUNC-TBC010-R6 | [§12.5 T6](#125-events-per-state-transition) | Given a T-BC is in Holdover-In-Spec, when offset exceeds MaxInSpecOffset, then E1 must NOT fire (state remains HOLDOVER), and E2 must emit clock class 165 |
+| FUNC-TBC010-R7 | [§12.5 T7](#125-events-per-state-transition) | Given a T-BC is in Holdover-In-Spec, when it transitions to Free-Run, then E1 must emit FREERUN, E2 must emit clock class 248, and E4 must emit FREERUN |
+| FUNC-TBC010-R8 | [§12.5 T8](#125-events-per-state-transition) | Given a T-BC is in Holdover-Out-Of-Spec, when it transitions to Locked, then E1 must emit LOCKED, E2 must emit the upstream GM clock class, and E4 must emit worst-of(LOCKED, current E3) |
+| FUNC-TBC010-R9 | [§12.5 T9](#125-events-per-state-transition) | Given a T-BC is in Holdover-Out-Of-Spec, when it transitions to Free-Run, then E1 must emit FREERUN, E2 must emit clock class 248, and E4 must emit FREERUN |
+| FUNC-TBC010-R10 | [§12.5 E3 / [O-RAN](#43-informative-references) Table 37](#125-events-per-state-transition) | Given phc2sys is running, then E3 must reflect both phc2sys offset AND upstream traceability: E3 = LOCKED only when phc2sys OK AND E1 = LOCKED; E3 = HOLDOVER when E1 = HOLDOVER and phc2sys OK; E3 = FREERUN when E1 = FREERUN (regardless of phc2sys) or phc2sys offset exceeds threshold. E3 must NOT fire due to ptp4l[TR] process failure alone |
+| FUNC-TBC010-R11 | [§12.5 Notes](#125-events-per-state-transition) | Given any event type, when the value has not changed from the previously emitted value, then no event must be emitted (edge-triggered only) |
 
 ### 14.11 Void (T-TSC requirements moved to [T-TSC spec](../ttsc/spec.md))
 
@@ -1137,143 +1258,177 @@ The system provides synchronization state and health information through multipl
 
 ### ID: FUNC-TBC012
 
-| Requirement ID | Traceability | Requirement text |
+| Requirement ID | Spec traceability | Requirement text |
 | :---- | :---- | :---- |
-| FUNC-TBC012-R1 | 6.5 step 1 | Given a node configuration is applied, then the system must determine the PTP clock type (T-BC or T-GM) from the configuration resource |
-| FUNC-TBC012-R2 | 6.5 step 2 | Given the clock type is determined, then processes (ptp4l, ts2phc, phc2sys) must be started in the required order with generated configurations |
-| FUNC-TBC012-R3 | 6.5 step 3 | Given processes are starting, then DPLL pins must be configured to the initial state for the determined clock type (per section 7.1.1 / 7.2.1) |
-| FUNC-TBC012-R4 | 6.5 step 4 | Given initialization completes, then the system must enter the Free-Run state unconditionally, regardless of whether an upstream source is already available |
-| FUNC-TBC012-R5 | 6.5, 6.4 T1 | Given a T-BC has just initialized, when an upstream source is already available, then the system must NOT bypass Free-Run — it must progress through the InSync condition to reach Locked |
+| FUNC-TBC012-R1 | [§6.5 step 1](#65-initialization-behavior) | Given a node configuration is applied, then the system must determine the PTP clock type (T-BC or T-GM) from the configuration resource |
+| FUNC-TBC012-R2 | [§6.5 step 2](#65-initialization-behavior) | Given the clock type is determined, then processes (ptp4l, ts2phc, phc2sys) must be started in the required order with generated configurations |
+| FUNC-TBC012-R3 | [§6.5 step 3](#65-initialization-behavior) | Given processes are starting, then DPLL pins must be configured to the initial state for the determined clock type (per section 7.1.1 / 7.2.1) |
+| FUNC-TBC012-R4 | [§6.5 step 4](#65-initialization-behavior) | Given initialization completes, then the system must enter the Free-Run state unconditionally, regardless of whether an upstream source is already available |
+| FUNC-TBC012-R5 | [§6.5](#65-initialization-behavior), [T1](#64-state-transition-table) | Given a T-BC has just initialized, when an upstream source is already available, then the system must NOT bypass Free-Run — it must progress through the InSync condition to reach Locked |
 
 ### 14.13 Configuration — Threshold Behavior
 
 ### ID: FUNC-TBC013
 
-| Requirement ID | Traceability | Requirement text |
+| Requirement ID | Spec traceability | Requirement text |
 | :---- | :---- | :---- |
-| FUNC-TBC013-R1 | 6.6 | Given `LocalMaxHoldoverOffSet` is set to a very large value, when the T-BC loses its source in Locked state and HoldoverDataValid is true, then it must enter Holdover-In-Spec — never Free-Run |
-| FUNC-TBC013-R2 | 6.6 | Given `LocalMaxHoldoverOffSet` ≤ `MaxInSpecOffset`, when the T-BC is in Holdover-In-Spec and offset exceeds the threshold, then it must transition directly to Free-Run, skipping Holdover-Out-Of-Spec |
-| FUNC-TBC013-R3 | 6.3 Locked-To-FreeRun | Given a T-BC is in Locked state, then the Locked-To-FreeRun transition (T4) must trigger only when Locked to Freerun condition is met|
-|
+| FUNC-TBC013-R1 | [§6.6](#66-configuration-use-cases) | Given `LocalMaxHoldoverOffSet` is set to a very large value, when the T-BC loses its source in Locked state and HoldoverDataValid is true, then it must enter Holdover-In-Spec — never Free-Run |
+| FUNC-TBC013-R2 | [§6.6](#66-configuration-use-cases) | Given `LocalMaxHoldoverOffSet` ≤ `MaxInSpecOffset`, when the T-BC is in Holdover-In-Spec and offset exceeds the threshold, then it must transition directly to Free-Run, skipping Holdover-Out-Of-Spec |
+| FUNC-TBC013-R3 | [§6.3 Locked-To-FreeRun](#63-state-transition-conditions) | Given a T-BC is in Locked state, then the Locked-To-FreeRun transition (T4) must trigger only when the Locked-To-FreeRun condition (NoValidSourceAvailable AND NOT HoldoverCapable, or offset exceeding LocalMaxHoldoverOffSet) is met |
 
 ### 14.14 Holdover Model — Offset Estimation
 
 ### ID: FUNC-TBC014
 
-| Requirement ID | Traceability | Requirement text |
+| Requirement ID | Spec traceability | Requirement text |
 | :---- | :---- | :---- |
-| FUNC-TBC014-R1 | 6.8.5 | Given a T-BC profile is configured, then the holdover model must be configurable via two parameters: `LocalMaxHoldoverOffSet` and `LocalHoldoverTimeout` |
-| FUNC-TBC014-R2 | 6.8.5 | Given a T-BC enters holdover, then the holdover duration must be derived from the oscillator model or the user-configurable timeout. For GNR-D the model is read from hardware; for WPC a default "4-hour holdover module" with 1500 ns maximum offset is used |
-| FUNC-TBC014-R3 | 6.8.5 | Given a WPC T-BC with no explicit oscillator model, then the default holdover model must be a "4-hour holdover module" with 1500 ns maximum offset and linear slope S = 104 ps/s |
-| FUNC-TBC014-R4 | 6.8.2.1 | Given a T-BC with an 8-hour holdover module is HoldoverCapable and enters holdover, then the offset must be estimated as ΔT(t) = T₀ + ½·A·t² (aging-dominated model) |
-| FUNC-TBC014-R5 | 6.8.2.2 | Given a T-BC with a 4-hour holdover module (WPC default) is HoldoverCapable and enters holdover, then the offset must be estimated as ΔT(t) = T₀ + S·t with S = 104 ps/s |
-| FUNC-TBC014-R6 | 6.8.2 | Given a T-BC loses its source and the system is NOT HoldoverCapable, then it must transition to Free-Run |
-| FUNC-TBC014-R7 | 6.8.4 | Given the oscillator has not reached sufficient power-on time (10–100 hours), then oscillator holdover performance must NOT be relied upon |
-| FUNC-TBC014-R8 | 6.3 HoldoverCapable | Given the current baseline defines HoldoverCapable as equivalent to HoldoverDataValid (all PPS DPLLs in LHAQ), then the system must treat HoldoverDataValid as sufficient for holdover entry. **GA REQUIREMENT**: this must be refined to include FFO-based syntonization criteria before general availability (see §6.3 HoldoverCapable, §6.8.2) |
+| FUNC-TBC014-R1 | [§6.8.5](#685-configuration-parameters) | Given a T-BC profile is configured, then the holdover model must be configurable via two parameters: `LocalMaxHoldoverOffSet` and `LocalHoldoverTimeout` |
+| FUNC-TBC014-R2 | [§6.8.5](#685-configuration-parameters) | Given a T-BC enters holdover, then the holdover duration must be derived from the oscillator model or the user-configurable timeout. For GNR-D the model is read from hardware; for WPC a default "4-hour holdover module" with 1500 ns maximum offset is used |
+| FUNC-TBC014-R3 | [§6.8.5](#685-configuration-parameters) | Given a WPC T-BC with no explicit oscillator model, then the default holdover model must be a "4-hour holdover module" with 1500 ns maximum offset and linear slope S = 104 ps/s |
+| FUNC-TBC014-R4 | [§6.8.2.1](#6861-8-hour-holdover-module) | Given a T-BC with an 8-hour holdover module is HoldoverCapable and enters holdover, then the offset must be estimated as ΔT(t) = T₀ + ½·A·t² (aging-dominated model) |
+| FUNC-TBC014-R5 | [§6.8.2.2](#6862-4-hour-holdover-module-or-the-wpc-default-holdover-module) | Given a T-BC with a 4-hour holdover module (WPC default) is HoldoverCapable and enters holdover, then the offset must be estimated as ΔT(t) = T₀ + S·t with S = 104 ps/s |
+| FUNC-TBC014-R6 | [§6.8.2](#682-the-simplified-holdover-model---ffs) | Given a T-BC loses its source and the system is NOT HoldoverCapable, then it must transition to Free-Run |
+| FUNC-TBC014-R7 | [§6.8.4](#684-oscillator-on-time-requirement) | Given the oscillator has not reached sufficient power-on time (10–100 hours), then oscillator holdover performance must NOT be relied upon |
+| FUNC-TBC014-R8 | [§6.3 HoldoverCapable](#63-state-transition-conditions) | Given the current baseline defines HoldoverCapable as equivalent to HoldoverDataValid (all PPS DPLLs in LHAQ), then the system must treat HoldoverDataValid as sufficient for holdover entry. **GA REQUIREMENT**: this must be refined to include FFO-based syntonization criteria before general availability (see §6.3 HoldoverCapable, §6.8.2) |
 
 ### 14.15 Process Orchestration — Startup Order and Lifecycle
 
 ### ID: FUNC-TBC015
 
-| Requirement ID | Traceability | Requirement text |
+| Requirement ID | Spec traceability | Requirement text |
 | :---- | :---- | :---- |
-| FUNC-TBC015-R1 | 9.2 step 1 | Given a T-BC configuration is applied, then ptp4l[TR] must be the first timing process started — before phc2sys, ts2phc, or ptp4l[TT] |
-| FUNC-TBC015-R2 | 9.2 step 2 | Given ptp4l[TR] is running but PTPSourceQualified is not yet met, then phc2sys must NOT be started |
-| FUNC-TBC015-R3 | 9.2 step 3 | Given PTPSourceQualified is not yet met, then ts2phc must NOT be started. Additionally, ts2phc must not start before phc2sys, since ts2phc depends on phc2sys for ToD |
-| FUNC-TBC015-R4 | 9.2 step 4 | Given PTPSourceQualified is not yet met, then ptp4l[TT] must NOT be started |
-| FUNC-TBC015-R5 | 9.3 | Given a configuration change or shutdown occurs, then processes can be stopped in any order |
-| FUNC-TBC015-R6 | 9.3 | Given any timing-critical process (ptp4l, ts2phc, phc2sys) is started, then it must run under SCHED_FIFO with configurable real-time priority |
-| FUNC-TBC015-R7 | 9.3 | Given a process exits unexpectedly, then it must be restarted automatically, and dependent processes must NOT be stopped and restarted (do not kill and restart other processes to adhere to the startup order) |
+| FUNC-TBC015-R1 | [§9.2 step 1](#92-t-bc-process-startup-order) | Given a T-BC configuration is applied, then ptp4l[TR] must be the first timing process started — before phc2sys, ts2phc, or ptp4l[TT] |
+| FUNC-TBC015-R2 | [§9.2 step 2](#92-t-bc-process-startup-order) | Given ptp4l[TR] is running but PTPSourceQualified is not yet met, then phc2sys must NOT be started |
+| FUNC-TBC015-R3 | [§9.2 step 3](#92-t-bc-process-startup-order) | Given PTPSourceQualified is not yet met, then ts2phc must NOT be started. Additionally, ts2phc must not start before phc2sys, since ts2phc depends on phc2sys for ToD |
+| FUNC-TBC015-R4 | [§9.2 step 4](#92-t-bc-process-startup-order) | Given the T-BC state machine has not yet transitioned to S2/InSync state, then ptp4l[TT] must NOT be started |
+| FUNC-TBC015-R5 | [§9.3](#93-process-lifecycle) | Given a configuration change or shutdown occurs, then processes can be stopped in any order |
+| FUNC-TBC015-R6 | [§9.3](#93-process-lifecycle) | Given any timing-critical process (ptp4l, ts2phc, phc2sys) is started, then it must run under SCHED_FIFO with configurable real-time priority |
+| FUNC-TBC015-R7 | [§9.3](#93-process-lifecycle) | Given a process exits unexpectedly, then it must be restarted automatically, and dependent processes must NOT be stopped and restarted (do not kill and restart other processes to adhere to the startup order) |
 
 ### 14.16 Process Failure — T-BC Behavior
 
 ### ID: FUNC-TBC016
 
-| Requirement ID | Traceability | Requirement text |
+| Requirement ID | Spec traceability | Requirement text |
 | :---- | :---- | :---- |
-| FUNC-TBC016-R1 | 9.5, ptp4l[TR] | Given ptp4l[TR] crashes or an upstream port switchover occurs, then the system must enter holdover. If ptp4l[TR] re-acquires SLAVE within `processDowntimeThresholds.ptp4l`, holdover state-change events must be suppressed. If downtime exceeds the threshold, clock class change events must be emitted |
-| FUNC-TBC016-R2 | 9.5, ptp4l[TR] | Given ptp4l[TR] crashes, then E3 (os-clock-sync-state-change) must NOT be emitted — phc2sys and the PHC are unaffected |
-| FUNC-TBC016-R3 | 9.5, ptp4l[TT] | Given ptp4l[TT] crashes, then the system must report TT ports as Free-Run (in metrics / events). The composite clock state of the system may remain in the previous state if upstream synchronization is unaffected. |
-| FUNC-TBC016-R4 | 9.5, ts2phc | Given ts2phc crashes and restarts within `processDowntimeThresholds.ts2phc`, then no state-change events must be emitted |
-| FUNC-TBC016-R5 | 9.5, phc2sys | Given phc2sys crashes and restarts within `processDowntimeThresholds.phc2sys`, then E3 (os-clock-sync-state-change) must NOT toggle LOCKED→FREERUN→LOCKED, unless the system clock drifts outside the `SysOffsetThreshold` during the downtime|
-| FUNC-TBC016-R6 | 9.5, general | Given a PtpConfig CRD is applied, then `processDowntimeThresholds` must be configurable per process. Default values: 5 s for ptp4l/phc2sys/ts2phc/synce4l/chronyd, 1 s for gpsd/gpspipe. Range: 0–86400 s |
-| FUNC-TBC016-R7 | 9.5, general | Given any timing process crashes, then it must be automatically restarted |
+| FUNC-TBC016-R1 | [§9.5 ptp4l[TR]](#95-t-bc-behavior-on-process-failure) | Given ptp4l[TR] crashes or an upstream port switchover occurs, then the system must enter holdover. If ptp4l[TR] re-acquires SLAVE within `processDowntimeThresholds.ptp4l`, holdover state-change events must be suppressed. If downtime exceeds the threshold, clock class change events must be emitted |
+| FUNC-TBC016-R2 | [§9.5 ptp4l[TR]](#95-t-bc-behavior-on-process-failure) | Given ptp4l[TR] crashes, then E3 (os-clock-sync-state-change) must NOT be emitted — phc2sys and the PHC are unaffected |
+| FUNC-TBC016-R3 | [§9.5 ptp4l[TT]](#95-t-bc-behavior-on-process-failure) | Given ptp4l[TT] crashes, then the system must report TT ports as Free-Run (in metrics / events). The composite clock state of the system may remain in the previous state if upstream synchronization is unaffected. |
+| FUNC-TBC016-R4 | [§9.5 ts2phc](#95-t-bc-behavior-on-process-failure) | Given ts2phc crashes and restarts within `processDowntimeThresholds.ts2phc`, then no state-change events must be emitted |
+| FUNC-TBC016-R5 | [§9.5 phc2sys](#95-t-bc-behavior-on-process-failure) | Given phc2sys crashes and restarts within `processDowntimeThresholds.phc2sys`, then E3 (os-clock-sync-state-change) must NOT toggle LOCKED→FREERUN→LOCKED, unless the system clock drifts outside the `SysOffsetThreshold` during the downtime |
+| FUNC-TBC016-R6 | [§9.5](#95-t-bc-behavior-on-process-failure) | Given a PtpConfig CRD is applied, then `processDowntimeThresholds` must be configurable per process. Default values: 5 s for ptp4l/phc2sys/ts2phc/synce4l/chronyd, 1 s for gpsd/gpspipe. Range: 0–86400 s |
+| FUNC-TBC016-R7 | [§9.5](#95-t-bc-behavior-on-process-failure) | Given any timing process crashes, then it must be automatically restarted |
 
 ### 14.17 Hardware Pin State Verification
 
 ### ID: FUNC-TBC017
 
-| Requirement ID | Traceability | Requirement text |
+| Requirement ID | Spec traceability | Requirement text |
 | :---- | :---- | :---- |
-| FUNC-TBC017-R1 | 7.1.1 WPC Init | Given a WPC T-BC is initialized, then CVL-SDP20/21/22/23 must be disabled/disconnected, GNSS-1PPS must be disabled, and SMA2/SDP22 must be configured to output 1PPS |
-| FUNC-TBC017-R2 | 7.1.2 WPC Locked | Given a WPC T-BC transitions to Locked (PTPSourceQualified), then CVL-SDP22 PPS priority must be set to 0 (enabled) and CVL-SDP23 must remain disconnected |
-| FUNC-TBC017-R3 | 7.1.3 WPC Holdover | Given a WPC T-BC enters holdover, then CVL-SDP22 must be disabled (priority 255) and CVL-SDP23 must be connected (output enabled) |
-| FUNC-TBC017-R4 | 7.1.4 WPC Return | Given a WPC T-BC returns to Locked from holdover, then CVL-SDP22 PPS priority must be restored to 0 and CVL-SDP23 must be disconnected |
-| FUNC-TBC017-R5 | 7.2.1 GNR-D Init | Given a GNR-D T-BC is initialized, then SDP0/SDP2 must be disabled (func=0), REF0P/REF0N must be PPS selectable, and GNSS inputs must be disabled |
-| FUNC-TBC017-R6 | 7.2.2 GNR-D Locked | Given a GNR-D T-BC transitions to Locked (PTPSourceQualified), then SDP0 must output 1PPS (TX ch1) and SDP2 must output 1kHz (TX ch2) |
-| FUNC-TBC017-R7 | 7.2.3 GNR-D Holdover | Given a GNR-D T-BC enters holdover, then SDP0 and SDP2 must be disabled (func=0) |
-| FUNC-TBC017-R8 | 7.2.4 GNR-D Return | Given a GNR-D T-BC returns to Locked from holdover, then SDP0 must resume 1PPS output and SDP2 must resume 1kHz output |
+| FUNC-TBC017-R1 | [§7.1.1](#711-initialization--free-run-state) | Given a WPC T-BC is initialized, then CVL-SDP20/21/22/23 must be disabled/disconnected, GNSS-1PPS must be disabled, and SMA2/SDP22 must be configured to output 1PPS |
+| FUNC-TBC017-R2 | [§7.1.2](#712-locked-state-ptpsourcequalified--see-63) | Given a WPC T-BC transitions to Locked (PTPSourceQualified), then CVL-SDP22 PPS priority must be set to 0 (enabled) and CVL-SDP23 must remain disconnected |
+| FUNC-TBC017-R3 | [§7.1.3](#713-holdover-ptp-source-lost) | Given a WPC T-BC enters holdover, then CVL-SDP22 must be disabled (priority 255) and CVL-SDP23 must be connected (output enabled) |
+| FUNC-TBC017-R4 | [§7.1.4](#714-return-to-locked-leaving-holdover) | Given a WPC T-BC returns to Locked from holdover, then CVL-SDP22 PPS priority must be restored to 0 and CVL-SDP23 must be disconnected |
+| FUNC-TBC017-R5 | [§7.2.1](#721-initialization--free-run-state) | Given a GNR-D T-BC is initialized, then SDP0/SDP2 must be disabled (func=0), REF0P/REF0N must be PPS selectable, and GNSS inputs must be disabled |
+| FUNC-TBC017-R6 | [§7.2.2](#722-locked-state-ptpsourcequalified--see-63) | Given a GNR-D T-BC transitions to Locked (PTPSourceQualified), then SDP0 must output 1PPS (TX ch1) and SDP2 must output 1kHz (TX ch2) |
+| FUNC-TBC017-R7 | [§7.2.3](#723-holdover-ptp-source-lost) | Given a GNR-D T-BC enters holdover, then SDP0 and SDP2 must be disabled (func=0) |
+| FUNC-TBC017-R8 | [§7.2.4](#724-return-to-locked-leaving-holdover) | Given a GNR-D T-BC returns to Locked from holdover, then SDP0 must resume 1PPS output and SDP2 must resume 1kHz output |
 
 ### 14.18 Per-State Announce Content Verification
 
 ### ID: FUNC-TBC018
 
-| Requirement ID | Traceability | Requirement text |
+| Requirement ID | Spec traceability | Requirement text |
 | :---- | :---- | :---- |
-| FUNC-TBC018-R1 | 8.1 Free-Run | Given a T-BC is in Free-Run state, then announce messages must contain: clockClass=248, clockAccuracy=Unknown(0xFE), gmIdentity=local, stepsRemoved=0, timeTraceable=FALSE, timeSource=INT_OSC(0xA0) |
-| FUNC-TBC018-R2 | 8.2 Locked | Given a T-BC is in Locked state, then announce messages must forward all upstream GM parameters via IWF, with stepsRemoved = received+1 |
-| FUNC-TBC018-R3 | 8.3 HO-In-Spec | Given a T-BC is in Holdover-In-Spec state, then announce messages must contain: clockClass=135, clockAccuracy=calculated from ramp model, gmIdentity=local, stepsRemoved=0, timeTraceable=TRUE, timeSource=INT_OSC(0xA0) |
-| FUNC-TBC018-R4 | 8.4 HO-Out-Of-Spec | Given a T-BC is in Holdover-Out-Of-Spec state, then announce messages must contain: clockClass=165, clockAccuracy=Unknown(0xFE), gmIdentity=local, stepsRemoved=0, timeTraceable=FALSE, timeSource=INT_OSC(0xA0) |
-| FUNC-TBC018-R5 | 8.5 Key Differences | Given a T-BC transitions between any two states, then currentUtcOffsetValid must be FALSE in Free-Run and TRUE in Holdover-In-Spec and Holdover-Out-Of-Spec |
-| FUNC-TBC018-R6 | 8.6 Clock Accuracy | Given a T-BC is in Holdover-In-Spec state, then clockAccuracy must be derived from the oscillator drift ramp model and mapped to the IEEE 1588 clockAccuracy enumeration |
+| FUNC-TBC018-R1 | [§8.1](#81-free-run-state-announce-content) | Given a T-BC is in Free-Run state, then announce messages must contain: clockClass=248, clockAccuracy=Unknown(0xFE), gmIdentity=local, stepsRemoved=0, timeTraceable=FALSE, timeSource=INT_OSC(0xA0) |
+| FUNC-TBC018-R2 | [§8.2](#82-locked-state-announce-content) | Given a T-BC is in Locked state, then announce messages must forward all upstream GM parameters via IWF, with stepsRemoved = received+1 |
+| FUNC-TBC018-R3 | [§8.3](#83-holdover-in-spec-state-announce-content) | Given a T-BC is in Holdover-In-Spec state, then announce messages must contain: clockClass=135, clockAccuracy=calculated from ramp model, gmIdentity=local, stepsRemoved=0, timeTraceable=TRUE, timeSource=INT_OSC(0xA0) |
+| FUNC-TBC018-R4 | [§8.4](#84-holdover-out-of-spec-state-announce-content) | Given a T-BC is in Holdover-Out-Of-Spec state, then announce messages must contain: clockClass=165, clockAccuracy=Unknown(0xFE), gmIdentity=local, stepsRemoved=0, timeTraceable=FALSE, timeSource=INT_OSC(0xA0) |
+| FUNC-TBC018-R5 | [§8.5](#85-key-differences-across-states) | Given a T-BC transitions between any two states, then currentUtcOffsetValid must be FALSE in Free-Run and TRUE in Holdover-In-Spec and Holdover-Out-Of-Spec |
+| FUNC-TBC018-R6 | [§8.6](#86-clock-accuracy-estimation-in-holdover) | Given a T-BC is in Holdover-In-Spec state, then clockAccuracy must be derived from the oscillator drift ramp model and mapped to the [IEEE 1588](#42-normative-references) clockAccuracy enumeration |
 
 ### 14.19 Clock Component Monitoring
 
 ### ID: FUNC-TBC019
 
-| Requirement ID | Traceability | Requirement text |
+| Requirement ID | Spec traceability | Requirement text |
 | :---- | :---- | :---- |
-| FUNC-TBC019-R1 | 10.1 ptp4l offset | Given a T-BC is in Locked state, when ptp4l reports master offset on the TR port, then the offset must be continuously monitored and available as a metric |
-| FUNC-TBC019-R2 | 10.1 DPLL offset | Given a T-BC has a DPLL, then the DPLL phase offset must be continuously monitored and available as a metric |
-| FUNC-TBC019-R3 | 10.1 ts2phc offset | Given ts2phc is running, then the ts2phc offset must be continuously monitored and available as a metric |
-| FUNC-TBC019-R4 | 10.1 phc2sys offset | Given phc2sys is running, then the phc2sys offset (CLOCK_REALTIME vs PHC) must be continuously monitored and available as a metric |
-| FUNC-TBC019-R5 | 10.2 MaxInSpecOffset | Given a T-BC is in Holdover-In-Spec state, when any estimated DPLL phase offset exceeds `MaxInSpecOffset`, then the system must transition to Holdover-Out-Of-Spec |
-| FUNC-TBC019-R6 | 10.2 LocalMaxHoldoverOffSet | Given a T-BC is in any Holdover state, when any estimated phase offset exceeds `LocalMaxHoldoverOffSet`, then the system must transition to Free-Run |
-| FUNC-TBC019-R7 | 10.2 inSyncConditionThreshold | Given a T-BC has ValidSourceAvailable, when the worst-case offset is below `inSyncConditionThreshold` for `inSyncConditionTimes` consecutive samples, then the InSync condition is met |
+| FUNC-TBC019-R1 | [§10.1](#10-clock-components-monitoring) | Given a T-BC is in Locked state, when ptp4l reports master offset on the TR port, then the offset must be continuously monitored and available as a metric |
+| FUNC-TBC019-R2 | [§10.1](#10-clock-components-monitoring) | Given a T-BC has a DPLL, then the DPLL phase offset must be continuously monitored and available as a metric |
+| FUNC-TBC019-R3 | [§10.1](#10-clock-components-monitoring) | Given ts2phc is running, then the ts2phc offset must be continuously monitored and available as a metric |
+| FUNC-TBC019-R4 | [§10.1](#10-clock-components-monitoring) | Given phc2sys is running, then the phc2sys offset (CLOCK_REALTIME vs PHC) must be continuously monitored and available as a metric |
+| FUNC-TBC019-R5 | [§10.2](#10-clock-components-monitoring) | Given a T-BC is in Holdover-In-Spec state, when any estimated DPLL phase offset exceeds `MaxInSpecOffset`, then the system must transition to Holdover-Out-Of-Spec |
+| FUNC-TBC019-R6 | [§10.2](#10-clock-components-monitoring) | Given a T-BC is in any Holdover state, when any estimated phase offset exceeds `LocalMaxHoldoverOffSet`, then the system must transition to Free-Run |
+| FUNC-TBC019-R7 | [§10.2](#10-clock-components-monitoring) | Given a T-BC has ValidSourceAvailable, when the worst-case offset is below `inSyncConditionThreshold` for `inSyncConditionTimes` consecutive samples, then the InSync condition is met |
 
 ### 14.20 Observability — Metrics Emission
 
 ### ID: FUNC-TBC020
 
-| Requirement ID | Traceability | Requirement text |
+| Requirement ID | Spec traceability | Requirement text |
 | :---- | :---- | :---- |
-| FUNC-TBC020-R1 | 11.1.1 clock_state | Given a T-BC is running, then `openshift_ptp_clock_state` must be emitted per interface and per process (T-BC, ptp4l, ts2phc, dpll, phc2sys) with values 0=FREERUN, 1=LOCKED, 2=HOLDOVER |
-| FUNC-TBC020-R2 | 11.1.1 clock_class | Given a T-BC is running, then `openshift_ptp_clock_class` must be emitted with the current clock class value |
-| FUNC-TBC020-R3 | 11.1.2 offset_ns | Given a T-BC is running, then `openshift_ptp_offset_ns` must be emitted per measurement point (ptp4l, ts2phc, dpll, phc2sys, T-BC aggregate) |
-| FUNC-TBC020-R4 | 11.1.3 DPLL status | Given a T-BC has a DPLL, then `openshift_ptp_phase_status`, `openshift_ptp_frequency_status`, and `openshift_ptp_pps_status` must be emitted with DPLL state values |
-| FUNC-TBC020-R5 | 11.1.4 interface_role | Given a T-BC is running, then `openshift_ptp_interface_role` must be emitted per PTP interface with port state (PASSIVE/SLAVE/MASTER/FAULTY/UNKNOWN/LISTENING) |
-| FUNC-TBC020-R6 | 11.1.5 process_status | Given a T-BC is running, then `openshift_ptp_process_status` (0=DOWN, 1=UP) and `openshift_ptp_process_restart_count` must be emitted per managed process |
-| FUNC-TBC020-R7 | 11.1.6 threshold | Given a T-BC is configured, then `openshift_ptp_threshold` must expose the active values of `MaxInSpecOffset`, `LocalMaxHoldoverOffSet`, `inSyncConditionThreshold`, `inSyncConditionTimes`, `SysOffsetThreshold`, and `SysOffsetSamples` per profile |
+| FUNC-TBC020-R1 | [§11.1.1](#1111-clock-state-and-class) | Given a T-BC is running, then `openshift_ptp_clock_state` must be emitted per interface and per process (T-BC, ptp4l, ts2phc, dpll, phc2sys) with values 0=FREERUN, 1=LOCKED, 2=HOLDOVER |
+| FUNC-TBC020-R2 | [§11.1.1](#1111-clock-state-and-class) | Given a T-BC is running, then `openshift_ptp_clock_class` must be emitted with the current clock class value |
+| FUNC-TBC020-R3 | [§11.1.2](#1112-offset-and-delay) | Given a T-BC is running, then `openshift_ptp_offset_ns` must be emitted per measurement point (ptp4l, ts2phc, dpll, phc2sys, T-BC aggregate) |
+| FUNC-TBC020-R4 | [§11.1.3](#1113-dpll-status) | Given a T-BC has a DPLL, then `openshift_ptp_phase_status` and `openshift_ptp_frequency_status` must be emitted with DPLL state values |
+| FUNC-TBC020-R5 | [§11.1.4](#1114-interface-role) | Given a T-BC is running, then `openshift_ptp_interface_role` must be emitted per PTP interface with port state (PASSIVE/SLAVE/MASTER/FAULTY/UNKNOWN/LISTENING) |
+| FUNC-TBC020-R6 | [§11.1.5](#1115-process-health) | Given a T-BC is running, then `openshift_ptp_process_status` (0=DOWN, 1=UP) and `openshift_ptp_process_restart_count` must be emitted per managed process |
+| FUNC-TBC020-R7 | [§11.1.6](#1116-configuration-thresholds) | Given a T-BC is configured, then `openshift_ptp_threshold` must expose the active values of `MaxInSpecOffset`, `LocalMaxHoldoverOffSet`, `inSyncConditionThreshold`, `inSyncConditionTimes`, `SysOffsetThreshold`, and `SysOffsetSamples` per profile |
 
 ### 14.21 Observability — Kubernetes Object Status and Events
 
 ### ID: FUNC-TBC021
 
-| Requirement ID | Traceability | Requirement text |
+| Requirement ID | Spec traceability | Requirement text |
 | :---- | :---- | :---- |
-| FUNC-TBC021-R1 | 11.2.1 PtpConfig | Given a PtpConfig is applied, then `PtpConfig.status` must report any unrecoverable error including the node name, error condition, and diagnostic information |
-| FUNC-TBC021-R2 | 11.2.2 NodePtpDevice | Given a node has PTP-capable hardware, then `NodePtpDevice.status` must report discovered PTP devices with hardware info and per-device hardware configuration status (including failed/success) |
-| FUNC-TBC021-R3 | 11.2.3 HardwareConfig | Given a HardwareConfig is applied, then `HardwareConfig.status` must report matched nodes and the PTP profile associated with each match |
-| FUNC-TBC021-R4 | 11.2.3 HardwareConfig | Given a HardwareConfig with behavior conditions is applied, then `HardwareConfig.status` should report the currently active behavior condition name per matched node (FFS) |
-| FUNC-TBC021-R5 | 11.2.4 K8s Events | Given a configuration apply failure occurs, then a Kubernetes Event with reason `ConfigurationApplyFailed` or `HardwareConfigFailed` must be emitted on the PtpConfig resource |
-| FUNC-TBC021-R6 | 11.2.4 K8s Events | Given a significant time irregularity is detected (e.g., time jumps backwards), then a Kubernetes Event with reason `TimeDiscontinuity` must be emitted |
-| FUNC-TBC021-R7 | 11.2.4 K8s Events | Given leap second data is updated, then a Kubernetes Event with reason `LeapSecondUpdate` must be emitted |
+| FUNC-TBC021-R1 | [§11.2.1](#1121-ptpconfig-status) | Given a PtpConfig is applied, then `PtpConfig.status` must report any unrecoverable error including the node name, error condition, and diagnostic information |
+| FUNC-TBC021-R2 | [§11.2.2](#1122-nodeptpdevice-status) | Given a node has PTP-capable hardware, then `NodePtpDevice.status` must report discovered PTP devices with hardware info and per-device hardware configuration status (including failed/success) |
+| FUNC-TBC021-R3 | [§11.2.3](#1123-hardwareconfig-status) | Given a HardwareConfig is applied, then `HardwareConfig.status` must report matched nodes and the PTP profile associated with each match |
+| FUNC-TBC021-R4 | [§11.2.3](#1123-hardwareconfig-status) | Given a HardwareConfig with behavior conditions is applied, then `HardwareConfig.status` should report the currently active behavior condition name per matched node (FFS) |
+| FUNC-TBC021-R5 | [§11.2.4](#1124-kubernetes-events) | Given a configuration apply failure occurs, then a Kubernetes Event with reason `ConfigurationApplyFailed` or `HardwareConfigFailed` must be emitted on the PtpConfig resource |
+| FUNC-TBC021-R6 | [§11.2.4](#1124-kubernetes-events) | Given a significant time irregularity is detected (e.g., time jumps backwards), then a Kubernetes Event with reason `TimeDiscontinuity` must be emitted |
+| FUNC-TBC021-R7 | [§11.2.4](#1124-kubernetes-events) | Given leap second data is updated, then a Kubernetes Event with reason `LeapSecondUpdate` must be emitted |
+
+### 14.22 Resiliency Requirements
+
+### ID: FUNC-TBC022
+
+| Requirement ID | Spec traceability | Requirement text |
+| :---- | :---- | :---- |
+| FUNC-TBC022-R1 | [§6.9](#69-resiliency-requirements), [§5.6](#56-upstream-port-redundancy) | Given redundant upstream TR ports, when ports flap (SLAVE loss/reacquire) and recovery occurs within `processDowntimeThresholds.ptp4l`, then holdover state-change events (E1/E2) must be suppressed |
+| FUNC-TBC022-R2 | [§6.9](#69-resiliency-requirements), [§6.4 T4](#64-state-transition-table) | Given a T-BC is Locked, when the Locked-To-FreeRun condition is met due to offset spike, then the T-BC must transition to Free-Run and emit E1=FREERUN, E2=248 |
+| FUNC-TBC022-R3 | [§6.9](#69-resiliency-requirements), [§6.4 T6](#64-state-transition-table) | Given a T-BC is in Holdover-In-Spec, when offset exceeds MaxInSpecOffset, then E1 must NOT fire and E2 must emit clock class 165 |
+| FUNC-TBC022-R4 | [§6.9](#69-resiliency-requirements), [§9.5 ptp4l[TR]](#95-t-bc-behavior-on-process-failure) | Given ptp4l[TR] crashes, then E3 (os-clock-sync-state-change) must NOT be emitted |
+| FUNC-TBC022-R5 | [§6.9](#69-resiliency-requirements), [§8.7](#87-announce-update-timing) | Given re-lock from holdover, when InSync is met, then announce content must reflect fresh upstream GM data via IWF with no stale holdover parameters |
+| FUNC-TBC022-R6 | [§6.9](#69-resiliency-requirements), [§5.6](#56-upstream-port-redundancy) | Given an A-BMCA switchover occurs between redundant TR ports with differing upstream GM parameters, when the switchover gap resolves, then downstream Announce messages must be updated via PMC to reflect the new upstream GM dataset upon re-lock |
+| FUNC-TBC022-R7 | [§6.9](#69-resiliency-requirements) | Given a pending leap second event occurs while in Holdover state, then the T-BC must update `currentUtcOffset` locally and announce last known leap second flags |
 
 ---
 ## 15. Performance Requirements Specification
-### 15.1 G.8273.2 Time Error Noise Generation
 
-[**Source: Rec. ITU-T G.8273.2/Y.1368.2 (06/2023), section 7.1**](https://www.itu.int/rec/T-REC-G.8273.2/en)
+Performance requirements in this section trace **directly** to [ITU-T G.8273.2](#42-normative-references) ([Recommendation ITU-T G.8273.2](https://www.itu.int/rec/T-REC-G.8273.2/en)) — Timing characteristics of telecom boundary clocks and telecom time slave clocks. They are distinct from §14 functional behavior.
+
+**Traceability conventions (§15 only)**
+
+| Column | Meaning | Link target |
+| :--- | :--- | :--- |
+| **Traceability** | G.8273.2 clause, table, or note that defines the performance limit | Hyperlinks to [G.8273.2](#42-normative-references) (section/table cited in text) |
+
+Do **not** use internal §6–§13 section refs in §15 traceability except in requirement *text* when explaining test context. Jira performance tests must reference PERF-TBC* IDs.
+
+**Measurement methodology (applies to all PERF-TBC requirements)**
+
+G.8273.2 is an output-referenced specification: every limit in §15 (max\|TE\|, cTE, dTE, noise tolerance/transfer, transient, holdover) is defined at the T-BC's **physical PTP and 1PPS output interfaces**, evaluated against an independent, calibrated reference — not against the device's own internal servo/offset telemetry. This mirrors the O-RAN WG4 IOT test methodology [[I4]](#43-informative-references) §7.9.5/7.10.5/7.11.5, which measures "on the O-RUs air interface using a test equipment referenced to the same PRTC" as the device under test.
+
+Accordingly, all PERF-TBC tests must be executed as follows:
+- The T-BC's upstream (input) reference and the measurement instrument's own reference must be traceable to the **same PRTC/T-GM**.
+- Time error, MTIE, TDEV, cTE, and transfer-function measurements must be taken with **calibrated external test equipment** (e.g., a time/phase error analyzer) connected to the physical PTP and/or 1PPS output port(s) of the T-BC.
+- Internal software telemetry (`openshift_ptp_offset_ns`, ptp4l/DPLL reported offsets, `pmc` queries) must **not** be substituted for this measurement. Those metrics validate the state machine's decision inputs (§14) — they are not a physical synchronization-accuracy measurement and must not be used to claim §15 conformance. In particular, holdover-model estimates computed from the same formula being validated (§6.8.6) must not be checked against themselves; the physical output must be measured independently during an actual source-loss event.
+- Unless otherwise noted, tests are run under constant temperature (within ±1 K); variable-temperature testing is out of scope (thermal profile is a vendor choice), consistent with [[I4]](#43-informative-references) §7.1.
+
+### 15.1 [G.8273.2](#42-normative-references) Time Error Noise Generation
+
+[**Source: Rec. ITU-T G.8273.2/Y.1368.2 (2023) Amendment 2 (11/2025), section 7.1**](#42-normative-references) ([ITU-T G.8273.2](https://www.itu.int/rec/T-REC-G.8273.2/en))
 
 The noise generation of a T-BC and a T-TSC represents the amount of noise produced at the output  
 of the T-BC/T-TSC when there is an ideal input reference packet timing signal.  
@@ -1281,74 +1436,100 @@ Under normal, locked operating conditions, the time output of the T-BC and the T
 accurate to within the maximum absolute time error (TE) (max|TE|). This value includes all the noise  
 components, i.e., the constant time error (cTE) and the dynamic time error (dTE) noise generation.
 
-| Requirement ID | Traceability | Requirement text |
+| Requirement ID | G.8273.2 traceability | Requirement text |
 | :---- | :---- | :---- |
-| PERF-TBC001-R1 | 7.1 Time error noise generation, Table 7-1 – Maximum absolute time error (max|TE|) | Maximum absolute unfiltered time error must not exceed 30ns  |
-| PERF-TBC001-R2 | 7.1 Time error noise generation, Table 7-2 – Maximum absolute time error low-pass filtered (max|TEL|) | Maximum absolute low-pass filtered time error must not exceed 5ns (NOTE1) |
-| PERF-TBC001-R3 | 7.1.1 Constant time error noise generation (cTE), Table 7-3 – T-BC/T-TSC permissible range of constant time error | The cTE generation at the PTP outputs must not exceed ±10ns (NOTE2)  |
-| PERF-TBC001-R4 | 7.1.2 Dynamic time error low-pass filtered noise generation (dTEL) Table 7-4 – Dynamic time error low-pass filtered noise generation (MTIE) for T-BC/T-TSC with constant temperature (within ±1 K) Table 7-5 – Dynamic time error low-pass filtered noise generation (TDEV) for T-BC/T-TSC with constant temperature (within ±1K) Table 7-6 – Dynamic time error low-pass filtered noise generation (MTIE) for T-BC/T-TSC with variable temperature | MTIE must not exceed 10 ns over the observation period of 10,000s TDEV must not exceed 2ns over the observation period of 1000s |
-| PERF-TBC001-R5 | Table 7-7 – Dynamic time error high-pass filtered noise generation for T-BC/T-TSC | Dynamic time error high-pass filtered noise generation (dTEH) must not exceed 30ns over the observation period of 1000s |
-| PERF-TBC001-R6 | 7.1.4.1 Relative constant time error noise generation (cTER)  | For clock class C, the relative constant time error (cTER) between any two phase and time output ports (1 PPS, PTP) of a T-BC must not exceed 12ns over a time period of 1000s |
-| PERF-TBC001-R7 | 7.1.4.2 Relative dynamic time error low-pass filtered noise generation (dTERL)  | Relative dynamic time error low-pass filtered noise generation (MTIE) for T-BC with constant temperature (within ±1 K) must not exceed 14ns over the observation time period of 1000s |
-| NOTE1. This requirement is specified for class D: “For class D, the maximum time error measured through a first-order low-pass filter with a bandwidth of 0.1 Hz, max|TEL|” NOTE2. Constant time error definition and the method to estimate constant time error are defined in \[ITU-T G.8260\]. For the purpose of testing the limit \[±10ns\], an estimate of constant time error should be obtained by averaging the time error sequence over 1 000 s.  |  |  |
+| PERF-TBC001-R1 | [G.8273.2 §7.1 Table 7-1](https://www.itu.int/rec/T-REC-G.8273.2/en) (Maximum absolute time error max\|TE\|) | For clock class C, maximum absolute unfiltered time error max\|TE\| must not exceed 30ns |
+| PERF-TBC001-R2 | [G.8273.2 §7.1 Table 7-2](https://www.itu.int/rec/T-REC-G.8273.2/en) (Maximum absolute time error low-pass filtered max\|TEL\|) | Maximum absolute low-pass filtered time error max\|TEL\| must not exceed 5ns (NOTE1) |
+| PERF-TBC001-R3 | [G.8273.2 §7.1.1 Table 7-3](https://www.itu.int/rec/T-REC-G.8273.2/en) (Constant time error cTE) | For clock class C, cTE generation at the PTP outputs must not exceed ±10ns (NOTE2) |
+| PERF-TBC001-R4 | [G.8273.2 §7.1.2 Table 7-4/7-5](https://www.itu.int/rec/T-REC-G.8273.2/en) (Dynamic time error low-pass filtered dTEL, constant temperature) | For clock class C under constant temperature (within ±1 K), MTIE must not exceed 10 ns over 1000s (NOTE3); TDEV must not exceed 2ns over 1000s |
+| PERF-TBC001-R5 | [G.8273.2 §7.1.3 Table 7-7](https://www.itu.int/rec/T-REC-G.8273.2/en) (Dynamic time error high-pass filtered dTEH) | For clock class C, dynamic time error high-pass filtered noise generation (dTEH), peak-to-peak, must not exceed 30ns over 1000s |
+| PERF-TBC001-R6 | [G.8273.2 §7.1.4.1 Table 7-8](https://www.itu.int/rec/T-REC-G.8273.2/en) (Relative constant time error cTER) | For clock class C, the relative constant time error (cTER) between any two phase and time output ports (1 PPS, PTP) of a T-BC must not exceed ±12ns over a time period of 1000s |
+| PERF-TBC001-R7 | [G.8273.2 §7.1.4.2 Table 7-9](https://www.itu.int/rec/T-REC-G.8273.2/en) (Relative dynamic time error low-pass filtered dTERL) | Relative dynamic time error low-pass filtered noise generation (MTIE) for T-BC with constant temperature (within ±1 K) must not exceed 14ns over 1000s |
+| NOTE1. Low-pass filtered requirement max\|TEL\| ≤ 5ns is specified for Class D in G.8273.2 Table 7-2. NOTE2. Constant time error definition and method to estimate cTE are defined in [ITU-T G.8260](#42-normative-references). cTE is estimated by averaging the time error sequence over 1000s. NOTE3. The 10 ns / 1000s MTIE limit is the **constant-temperature** value (Table 7-4). Table 7-6 defines a separate 10 ns / 10,000s limit for **variable-temperature** testing only, which is out of scope per the measurement methodology above — do not conflate the two observation windows. | | |
 
 
-### 15.2 G.8273.2 Noise Tolerance
+### 15.2 [G.8273.2](#42-normative-references) Noise Tolerance
 
 [**Source: Rec. ITU-T G.8273.2/Y.1368.2 (06/2023), section 7.2**](https://www.itu.int/rec/T-REC-G.8273.2/en)
 
 The noise tolerance of a T-BC/T-TSC indicates the minimum dynamic time error level at the input of the clock that should be accommodated while not causing any alarms, not causing the clock to switch reference, and not causing the clock to go into holdover.
 
-| Requirement ID | Traceability | Requirement text |
+| Requirement ID | G.8273.2 traceability | Requirement text |
 | :---- | :---- | :---- |
-| PERF-TBC002-R1 | 7.2.2 Noise tolerance for clock class C | T-BC/T-TSC class C must tolerate dTE according to G.8271.1 network limit (clause 7.3) at the PTP input |
-| PERF-TBC002-R2 | 7.2, general | Under the applied noise tolerance levels, the clock must not raise alarms, must not switch reference, and must not enter holdover |
+| PERF-TBC002-R1 | [G.8273.2 §7.2.2](https://www.itu.int/rec/T-REC-G.8273.2/en) (7.2.2 Noise tolerance for clock class C) | T-BC/T-TSC class C must tolerate dTE according to [G.8271.1](#42-normative-references) network limit (clause 7.3) at the PTP input |
+| PERF-TBC002-R2 | [G.8273.2 §7.2](https://www.itu.int/rec/T-REC-G.8273.2/en) (7.2, general) | Under the applied noise tolerance levels, the clock must not raise alarms, must not switch reference, and must not enter holdover |
 | NOTE. There is no requirement related to cTE tolerance. | | |
 
-### 15.3 G.8273.2 Noise Transfer
+### 15.3 [G.8273.2](#42-normative-references) Noise Transfer
 
 [**Source: Rec. ITU-T G.8273.2/Y.1368.2 (06/2023), section 7.3**](https://www.itu.int/rec/T-REC-G.8273.2/en)
 
 The transfer characteristic of the T-BC/T-TSC determines its properties with regard to the transfer of time error from the PTP input interface to the PTP and 1 PPS output interfaces.
 
-| Requirement ID | Traceability | Requirement text |
+| Requirement ID | G.8273.2 traceability | Requirement text |
 | :---- | :---- | :---- |
-| PERF-TBC003-R1 | 7.3.1 PTP to PTP and PTP to 1 PPS noise transfer | The bandwidth of the T-BC/T-TSC must not exceed 0.1 Hz and must not be less than 0.05 Hz |
-| PERF-TBC003-R2 | 7.3.1 PTP to PTP and PTP to 1 PPS noise transfer | In the passband, the phase gain must be smaller than 0.1 dB (1.1%) |
+| PERF-TBC003-R1 | [G.8273.2 §7.3.1](https://www.itu.int/rec/T-REC-G.8273.2/en) (7.3.1 PTP to PTP and PTP to 1 PPS noise transfer) | The bandwidth of the T-BC/T-TSC must not exceed 0.1 Hz and must not be less than 0.05 Hz |
+| PERF-TBC003-R2 | [G.8273.2 §7.3.1](https://www.itu.int/rec/T-REC-G.8273.2/en) (7.3.1 PTP to PTP and PTP to 1 PPS noise transfer) | In the passband, the phase gain must be smaller than 0.1 dB (1.1%) |
 | NOTE. Noise transfer applies to dynamic time noise only; there is no requirement related to cTE transfer. | | |
 
-### 15.4 G.8273.2 Transient Response
+### 15.4 [G.8273.2](#42-normative-references) Transient Response
 
 [**Source: Rec. ITU-T G.8273.2/Y.1368.2 (06/2023), section 7.4.1**](https://www.itu.int/rec/T-REC-G.8273.2/en)
 
 The transient response of the T-BC/T-TSC bounds the output signal excursion during rearrangement events in the PTP network.
 
-| Requirement ID | Traceability | Requirement text |
+| Requirement ID | G.8273.2 traceability | Requirement text |
 | :---- | :---- | :---- |
-| PERF-TBC004-R1 | 7.4.1.2 Transient due to PTP network rearrangement (class C) | PTP/1PPS output transient response due to rearrangement of the PTP network is FFS in G.8273.2 |
+| PERF-TBC004-R1 | [G.8273.2 §7.4.1.2](https://www.itu.int/rec/T-REC-G.8273.2/en) (7.4.1.2 Transient due to PTP network rearrangement (class C)) | PTP/1PPS output transient response due to rearrangement of the PTP network is FFS in [G.8273.2](#42-normative-references) |
 | NOTE. PTP-only rearrangement transient response is FFS. | | |
 
-### 15.5 G.8273.2 Holdover Performance
+### 15.5 [G.8273.2](#42-normative-references) Holdover Performance
 
 [**Source: Rec. ITU-T G.8273.2/Y.1368.2 (06/2023), section 7.4.2**](https://www.itu.int/rec/T-REC-G.8273.2/en)
 
 The holdover performance requirements bound the maximum excursions in the PTP and 1 PPS output signal during loss of PTP input.
 
-| Requirement ID | Traceability | Requirement text |
+| Requirement ID | G.8273.2 traceability | Requirement text |
 | :---- | :---- | :---- |
-| PERF-TBC005-R1 | 7.4.2.1, class C | Holdover performance (loss of all phase/time inputs) for class C is FFS in G.8273.2 |
-| NOTE 1. G.8273.2 does not yet specify holdover MTIE masks for class C — this is explicitly FFS in section 7.4.2.1 and 7.4.2.3. | | |
+| PERF-TBC005-R1 | [G.8273.2 §7.4.2.1](https://www.itu.int/rec/T-REC-G.8273.2/en) (7.4.2.1, class C) | Holdover performance (loss of all phase/time inputs) for class C is FFS in [G.8273.2](#42-normative-references) |
+| NOTE 1. [G.8273.2](#42-normative-references) does not yet specify holdover MTIE masks for class C — this is explicitly FFS in section 7.4.2.1 and 7.4.2.3. | | |
 | NOTE 2. Unassisted holdover (section 6 of this spec) operates without physical layer frequency — performance is bounded by the local OCXO drift model. | | |
 
-## 16. References
+---
 
-- [Story & Acceptance Criteria](story.md)
-- [Design Document: T-BC / T-TSC Unassisted Holdover](Design%20document_%20T-BC%20_%20T-TSC%20unassisted%20holdover.md)
-- ITU-T G.8273.2 — Timing characteristics of T-BC and T-TSC
-- ITU-T G.8275.1 — PTP telecom profile for phase/time with full timing support
-- ITU-T G.8275 (2024) Amd.1 — Clock state mode definitions
-- IEEE 1588-2019 — Precision Time Protocol
-- ITU-T G.811 — Primary Reference Clock
-- ITU-T G.812 — Slave clock types
-- O-RAN O-Cloud Notification API v2
-- CloudEvents Specification v1.0
+## 16. Security
+
+### 16.1 PTP Transport Security
+
+The PTP Operator Stack supports **PTP transport security** to protect the synchronization plane against unauthorized access, spoofing, and man-in-the-middle attacks.
+
+#### 16.1.1 Supported Transport Security Mechanism
+
+| Mechanism | Description |
+| :--- | :--- |
+| **MACsec (IEEE 802.1AE)** | Layer 2 link encryption applied to PTP traffic (Announce, Sync, DelayReq/Resp frames). Provides per-hop data-plane confidentiality and integrity for G.8275.1 (L2 multicast) profiles |
+| **IPsec / TLS** | Layer 3/4 security applicable to G.8275.2 (UDP unicast) profiles. FFS — not in current scope |
+
+#### 16.1.2 Security Requirements
+
+| Requirement ID | Requirement text |
+| :--- | :--- |
+| SEC-TBC001 | The system must support configuration of MACsec on PTP-carrying links for G.8275.1 profiles |
+| SEC-TBC002 | MACsec key management (static pre-shared keys or MKA/802.1X) must be configurable via the PtpConfig custom resource or a referenced secret |
+| SEC-TBC003 | Enabling MACsec must not cause the PTP state machine to behave differently from non-secured operation; the synchronization chain behavior (§6) must be identical |
+| SEC-TBC004 | The system must not transmit or forward PTP messages over unsecured links when MACsec is configured and the link security association is not established |
+| SEC-TBC005 | PTP port states and clock state events (§12) must correctly reflect MACsec link status: a link with a failed security association must be treated as link down |
+
+#### 16.1.3 Out of Scope
+
+- Key lifecycle management infrastructure (certificate authority, key server) — provided externally
+- Application-layer PTP message authentication (IEEE 1588-2019 Annex P / ICV) — FFS
+- Security of the Kubernetes control plane or O-Cloud management interfaces
+
+### 16.2 Informative Notes
+
+- G.8275.1 uses L2 multicast, which is inherently constrained to a single broadcast domain. MACsec provides hop-by-hop security without requiring changes to the PTP protocol layer.
+- When MACsec is used end-to-end across a fronthaul network, each hop (T-BC or T-TC) must independently terminate and re-originate the MACsec session; PTP payloads are visible in plaintext within each boundary clock for processing.
+
+
+

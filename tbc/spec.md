@@ -6,7 +6,7 @@
 
 **Created**: 2026-06-16
 
-**Last Updated**: 2026-08-18
+**Last Updated**: 2026-08-20
 
 **Version**: release-5.1
 
@@ -127,6 +127,7 @@ This document is the **living single source of truth** for T-BC behavior. At PTP
 - **[I1]** [O-RAN O-Cloud Notification API Specification for Event Consumers 4.0, June 2024 R003](https://specifications.o-ran.org/)
 - **[I2]** [O-RAN Control, User and Synchronization Plane Specification 21.0, June 2026, R0005](https://specifications.o-ran.org/)
 - **[I3]** [CloudEvents Specification v1.0](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md)
+- **[I4]** [O-RAN Fronthaul Interoperability Test Specification (IOT), O-RAN.WG4.TS.IOT.0-R005-v16.00](https://specifications.o-ran.org/): referenced for S-Plane interoperability test methodology (PRTC-referenced external measurement, startup/nominal/degraded test structure) informing the measurement methodology in [§15](#15-performance-requirements-specification).
 
 ## 5. System Scope and Context
 
@@ -1415,9 +1416,19 @@ Performance requirements in this section trace **directly** to [ITU-T G.8273.2](
 
 Do **not** use internal §6–§13 section refs in §15 traceability except in requirement *text* when explaining test context. Jira performance tests must reference PERF-TBC* IDs.
 
+**Measurement methodology (applies to all PERF-TBC requirements)**
+
+G.8273.2 is an output-referenced specification: every limit in §15 (max\|TE\|, cTE, dTE, noise tolerance/transfer, transient, holdover) is defined at the T-BC's **physical PTP and 1PPS output interfaces**, evaluated against an independent, calibrated reference — not against the device's own internal servo/offset telemetry. This mirrors the O-RAN WG4 IOT test methodology [[I4]](#43-informative-references) §7.9.5/7.10.5/7.11.5, which measures "on the O-RUs air interface using a test equipment referenced to the same PRTC" as the device under test.
+
+Accordingly, all PERF-TBC tests must be executed as follows:
+- The T-BC's upstream (input) reference and the measurement instrument's own reference must be traceable to the **same PRTC/T-GM**.
+- Time error, MTIE, TDEV, cTE, and transfer-function measurements must be taken with **calibrated external test equipment** (e.g., a time/phase error analyzer) connected to the physical PTP and/or 1PPS output port(s) of the T-BC.
+- Internal software telemetry (`openshift_ptp_offset_ns`, ptp4l/DPLL reported offsets, `pmc` queries) must **not** be substituted for this measurement. Those metrics validate the state machine's decision inputs (§14) — they are not a physical synchronization-accuracy measurement and must not be used to claim §15 conformance. In particular, holdover-model estimates computed from the same formula being validated (§6.8.6) must not be checked against themselves; the physical output must be measured independently during an actual source-loss event.
+- Unless otherwise noted, tests are run under constant temperature (within ±1 K); variable-temperature testing is out of scope (thermal profile is a vendor choice), consistent with [[I4]](#43-informative-references) §7.1.
+
 ### 15.1 [G.8273.2](#42-normative-references) Time Error Noise Generation
 
-[**Source: Rec. ITU-T G.8273.2/Y.1368.2 (06/2023), section 7.1**](#42-normative-references) ([ITU-T G.8273.2](https://www.itu.int/rec/T-REC-G.8273.2/en))
+[**Source: Rec. ITU-T G.8273.2/Y.1368.2 (2023) Amendment 2 (11/2025), section 7.1**](#42-normative-references) ([ITU-T G.8273.2](https://www.itu.int/rec/T-REC-G.8273.2/en))
 
 The noise generation of a T-BC and a T-TSC represents the amount of noise produced at the output  
 of the T-BC/T-TSC when there is an ideal input reference packet timing signal.  
@@ -1427,14 +1438,14 @@ components, i.e., the constant time error (cTE) and the dynamic time error (dTE)
 
 | Requirement ID | G.8273.2 traceability | Requirement text |
 | :---- | :---- | :---- |
-| PERF-TBC001-R1 | [G.8273.2 §7.1 Table 7-1](https://www.itu.int/rec/T-REC-G.8273.2/en) (Maximum absolute time error max\|TE\|) | For clock class C, maximum absolute unfiltered time error max\|TE\| must not exceed 10ns |
+| PERF-TBC001-R1 | [G.8273.2 §7.1 Table 7-1](https://www.itu.int/rec/T-REC-G.8273.2/en) (Maximum absolute time error max\|TE\|) | For clock class C, maximum absolute unfiltered time error max\|TE\| must not exceed 30ns |
 | PERF-TBC001-R2 | [G.8273.2 §7.1 Table 7-2](https://www.itu.int/rec/T-REC-G.8273.2/en) (Maximum absolute time error low-pass filtered max\|TEL\|) | Maximum absolute low-pass filtered time error max\|TEL\| must not exceed 5ns (NOTE1) |
 | PERF-TBC001-R3 | [G.8273.2 §7.1.1 Table 7-3](https://www.itu.int/rec/T-REC-G.8273.2/en) (Constant time error cTE) | For clock class C, cTE generation at the PTP outputs must not exceed ±10ns (NOTE2) |
-| PERF-TBC001-R4 | [G.8273.2 §7.1.2 Table 7-4](https://www.itu.int/rec/T-REC-G.8273.2/en) (Dynamic time error low-pass filtered dTEL) | For clock class C, MTIE must not exceed 10 ns over 10,000s; TDEV must not exceed 2ns over 1000s |
-| PERF-TBC001-R5 | [G.8273.2 §7.1.3 Table 7-7](https://www.itu.int/rec/T-REC-G.8273.2/en) (Dynamic time error high-pass filtered dTEH) | For clock class C, dynamic time error high-pass filtered noise generation (dTEH) must not exceed 10ns over 1000s |
-| PERF-TBC001-R6 | [G.8273.2 §7.1.4.1](https://www.itu.int/rec/T-REC-G.8273.2/en) (Relative constant time error cTER) | For clock class C, the relative constant time error (cTER) between any two phase and time output ports (1 PPS, PTP) of a T-BC must not exceed 10ns over a time period of 1000s |
-| PERF-TBC001-R7 | [G.8273.2 §7.1.4.2](https://www.itu.int/rec/T-REC-G.8273.2/en) (Relative dynamic time error low-pass filtered dTERL) | Relative dynamic time error low-pass filtered noise generation (MTIE) for T-BC with constant temperature (within ±1 K) must not exceed 14ns over 1000s |
-| NOTE1. Low-pass filtered requirement max\|TEL\| ≤ 5ns is specified for Class D in G.8273.2 Table 7-2. NOTE2. Constant time error definition and method to estimate cTE are defined in [ITU-T G.8260](#42-normative-references). cTE is estimated by averaging the time error sequence over 1000s. | | |
+| PERF-TBC001-R4 | [G.8273.2 §7.1.2 Table 7-4/7-5](https://www.itu.int/rec/T-REC-G.8273.2/en) (Dynamic time error low-pass filtered dTEL, constant temperature) | For clock class C under constant temperature (within ±1 K), MTIE must not exceed 10 ns over 1000s (NOTE3); TDEV must not exceed 2ns over 1000s |
+| PERF-TBC001-R5 | [G.8273.2 §7.1.3 Table 7-7](https://www.itu.int/rec/T-REC-G.8273.2/en) (Dynamic time error high-pass filtered dTEH) | For clock class C, dynamic time error high-pass filtered noise generation (dTEH), peak-to-peak, must not exceed 30ns over 1000s |
+| PERF-TBC001-R6 | [G.8273.2 §7.1.4.1 Table 7-8](https://www.itu.int/rec/T-REC-G.8273.2/en) (Relative constant time error cTER) | For clock class C, the relative constant time error (cTER) between any two phase and time output ports (1 PPS, PTP) of a T-BC must not exceed ±12ns over a time period of 1000s |
+| PERF-TBC001-R7 | [G.8273.2 §7.1.4.2 Table 7-9](https://www.itu.int/rec/T-REC-G.8273.2/en) (Relative dynamic time error low-pass filtered dTERL) | Relative dynamic time error low-pass filtered noise generation (MTIE) for T-BC with constant temperature (within ±1 K) must not exceed 14ns over 1000s |
+| NOTE1. Low-pass filtered requirement max\|TEL\| ≤ 5ns is specified for Class D in G.8273.2 Table 7-2. NOTE2. Constant time error definition and method to estimate cTE are defined in [ITU-T G.8260](#42-normative-references). cTE is estimated by averaging the time error sequence over 1000s. NOTE3. The 10 ns / 1000s MTIE limit is the **constant-temperature** value (Table 7-4). Table 7-6 defines a separate 10 ns / 10,000s limit for **variable-temperature** testing only, which is out of scope per the measurement methodology above — do not conflate the two observation windows. | | |
 
 
 ### 15.2 [G.8273.2](#42-normative-references) Noise Tolerance

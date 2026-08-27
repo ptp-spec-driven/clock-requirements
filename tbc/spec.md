@@ -856,9 +856,9 @@ Threshold names exposed for T-BC:
 | `ptpSourceDisqualifiedThreshold` | ns | 6.3 PTPSourceQualified | ptp4l master offset threshold to declare upstream source disqualified |
 | `ptpSourceQualifiedSamples` | count | 6.3 PTPSourceQualified | Consecutive ptp4l samples below `ptpSourceQualifiedThreshold` required for qualification (default: 5) |
 | `ptpSourceDisqualifiedSamples` | count | 6.3 PTPSourceQualified | Consecutive ptp4l samples exceeding `ptpSourceDisqualifiedThreshold` required for disqualification (default: 5) |
-| `SysOffsetThreshold` | ns | 12.5 E3 | phc2sys system clock lock threshold |
-| `SysOffsetInSyncSamples` | count | 12.5 E3 | Consecutive phc2sys samples below `SysOffsetThreshold` required for E3 LOCKED (default: 5) |
-| `SysOffsetOutOfSyncSamples` | count | 12.5 E3 | Consecutive phc2sys samples exceeding `SysOffsetThreshold` required for E3 FREERUN (default: 5) |
+| `SysOffsetInSyncThreshold` | ns | 12.5 E3 | phc2sys system clock in-sync threshold to declare E3 LOCKED |
+| `SysOffsetOutOfSyncThreshold` | ns | 12.5 E3 | phc2sys system clock out-of-sync threshold to declare E3 FREERUN |
+| `SysOffsetSamples` | count | 12.5 E3 | Consecutive phc2sys samples required for E3 state transitions (default: 10) |
 
 Legacy thresholds (not used in T-BC state machine):
 
@@ -988,27 +988,27 @@ Per [O-RAN O-Cloud Notification API v04.00](#43-informative-references), Table 3
 
 E3 is determined by two factors:
 
-1. **phc2sys operational state**: is phc2sys successfully disciplining CLOCK_REALTIME to the PHC? (offset within `SysOffsetThreshold`)
+1. **phc2sys operational state**: is phc2sys successfully disciplining CLOCK_REALTIME to the PHC? (offset within `SysOffsetInSyncThreshold` / `SysOffsetOutOfSyncThreshold`)
 2. **Upstream traceability**: is the PHC itself traceable? This is derived from the E1 (PTP Lock State)
 
 **E3 state derivation:**
 
 | E1 (PTP State) | phc2sys status | E3 (OS Clock) | [O-RAN](#43-informative-references) Rationale |
 | :--- | :--- | :--- | :--- |
-| LOCKED | offset < threshold | **LOCKED** | OS clock synchronized to traceable & valid source |
-| HOLDOVER | offset < threshold | **HOLDOVER** | OS clock in holdover — tracking a holdover-mode PHC |
-| FREERUN | offset < threshold | **FREERUN** | PHC not traceable; OS clock locked to invalid source |
-| any | offset > threshold | **FREERUN** | OS clock not locked to any reference |
+| LOCKED | offset ≤ in-sync threshold | **LOCKED** | OS clock synchronized to traceable & valid source |
+| HOLDOVER | offset ≤ out-of-sync threshold | **HOLDOVER** | OS clock in holdover — tracking a holdover-mode PHC |
+| FREERUN | offset ≤ in-sync threshold | **FREERUN** | PHC not traceable; OS clock locked to invalid source |
+| any | offset > out-of-sync threshold | **FREERUN** | OS clock not locked to any reference |
 | any | phc2sys process down | **FREERUN** | OS clock not disciplined |
 
 **E3 trigger conditions:**
 
 | E3 Trigger | E3 Value Emitted | Condition |
 | :--- | :--- | :--- |
-| phc2sys offset converges AND E1 = LOCKED | LOCKED | phc2sys offset ≤ `SysOffsetThreshold` for `SysOffsetInSyncSamples` consecutive samples, and PHC is traceable |
+| phc2sys offset converges AND E1 = LOCKED | LOCKED | phc2sys offset ≤ `SysOffsetInSyncThreshold` for `SysOffsetSamples` consecutive samples, and PHC is traceable |
 | E1 transitions to HOLDOVER (phc2sys still OK) | HOLDOVER | PHC enters holdover — OS clock follows into holdover by extension |
 | E1 transitions to FREERUN | FREERUN | PHC has no valid upstream reference — OS clock is free-running regardless of phc2sys offset |
-| phc2sys offset exceeds threshold | FREERUN | phc2sys offset > `SysOffsetThreshold` for `SysOffsetOutOfSyncSamples` consecutive samples |
+| phc2sys offset exceeds threshold | FREERUN | phc2sys offset > `SysOffsetOutOfSyncThreshold` for `SysOffsetSamples` consecutive samples |
 | phc2sys process stops or PHC becomes unavailable | FREERUN | phc2sys unable to discipline system clock |
 | E1 returns to LOCKED + phc2sys offset recovers | LOCKED | Both traceability and phc2sys operation restored |
 
@@ -1100,9 +1100,9 @@ When a profile is designated, certain PTP parameters are fixed by the profile an
 | `ptpSourceQualifiedSamples` | `5` | positive integer | Consecutive ptp4l samples required to qualify upstream source (§6.3) |
 | `ptpSourceDisqualifiedSamples` | `5` | positive integer | Consecutive ptp4l samples required to disqualify upstream source (§6.3) |
 | `ptpSourceUseS3` | `false` | boolean | When TRUE, use ptp4l S3 servo state instead of offset filter to qualify upstream source (§6.3) |
-| `SysOffsetThreshold` | — | positive integer (ns) | phc2sys system clock lock threshold (§12.5) |
-| `SysOffsetInSyncSamples` | `5` | positive integer | Consecutive phc2sys samples below `SysOffsetThreshold` required for E3 LOCKED (§12.5) |
-| `SysOffsetOutOfSyncSamples` | `5` | positive integer | Consecutive phc2sys samples exceeding `SysOffsetThreshold` required for E3 FREERUN (§12.5) |
+| `SysOffsetInSyncThreshold` | — | positive integer (ns) | phc2sys system clock in-sync threshold to declare E3 LOCKED (§12.5) |
+| `SysOffsetOutOfSyncThreshold` | — | positive integer (ns) | phc2sys system clock out-of-sync threshold to declare E3 FREERUN (§12.5) |
+| `SysOffsetSamples` | `10` | positive integer | Consecutive phc2sys samples required for E3 state transitions (§12.5) |
 | `processDowntimeThresholds.ptp4l` | `5` | 0–86400 (s) | Acceptable downtime before holdover events are emitted (§9.5) |
 | `processDowntimeThresholds.phc2sys` | `5` | 0–86400 (s) | Acceptable downtime before E3 events are emitted (§9.5) |
 | `processDowntimeThresholds.ts2phc` | `5` | 0–86400 (s) | Acceptable downtime before events are emitted (§9.5) |
@@ -1260,7 +1260,7 @@ Do **not** cite [ITU-T G.8273.2](#42-normative-references) in §14 traceability 
 | FUNC-TBC010-R7 | [§12.5 T7](#125-events-per-state-transition) | Given a T-BC is in Holdover-In-Spec, when it transitions to Free-Run, then E1 must emit FREERUN, E2 must emit clock class 248, and E4 must emit FREERUN |
 | FUNC-TBC010-R8 | [§12.5 T8](#125-events-per-state-transition) | Given a T-BC is in Holdover-Out-Of-Spec, when it transitions to Locked, then E1 must emit LOCKED, E2 must emit the upstream GM clock class, and E4 must emit worst-of(LOCKED, current E3) |
 | FUNC-TBC010-R9 | [§12.5 T9](#125-events-per-state-transition) | Given a T-BC is in Holdover-Out-Of-Spec, when it transitions to Free-Run, then E1 must emit FREERUN, E2 must emit clock class 248, and E4 must emit FREERUN |
-| FUNC-TBC010-R10 | [§12.5 E3 / [O-RAN](#43-informative-references) Table 37](#125-events-per-state-transition) | Given phc2sys is running, then E3 must reflect both phc2sys offset AND upstream traceability: E3 = LOCKED only when phc2sys OK (offset ≤ `SysOffsetThreshold` for `SysOffsetInSyncSamples` consecutive samples) AND E1 = LOCKED; E3 = HOLDOVER when E1 = HOLDOVER and phc2sys OK; E3 = FREERUN when E1 = FREERUN (regardless of phc2sys) or phc2sys offset exceeds `SysOffsetThreshold` for `SysOffsetOutOfSyncSamples` consecutive samples. E3 must NOT fire due to ptp4l[TR] process failure alone |
+| FUNC-TBC010-R10 | [§12.5 E3 / [O-RAN](#43-informative-references) Table 37](#125-events-per-state-transition) | Given phc2sys is running, then E3 must reflect both phc2sys offset AND upstream traceability: E3 = LOCKED only when phc2sys OK (offset ≤ `SysOffsetInSyncThreshold` for `SysOffsetSamples` consecutive samples) AND E1 = LOCKED; E3 = HOLDOVER when E1 = HOLDOVER and phc2sys OK; E3 = FREERUN when E1 = FREERUN (regardless of phc2sys) or phc2sys offset exceeds `SysOffsetOutOfSyncThreshold` for `SysOffsetSamples` consecutive samples. E3 must NOT fire due to ptp4l[TR] process failure alone |
 | FUNC-TBC010-R11 | [§12.5 Notes](#125-events-per-state-transition) | Given any event type, when the value has not changed from the previously emitted value, then no event must be emitted (edge-triggered only) |
 
 ### 14.11 Void (T-TSC requirements moved to [T-TSC spec](../ttsc/spec.md))
@@ -1326,7 +1326,7 @@ Do **not** cite [ITU-T G.8273.2](#42-normative-references) in §14 traceability 
 | FUNC-TBC016-R2 | [§9.5 ptp4l[TR]](#95-t-bc-behavior-on-process-failure) | Given ptp4l[TR] crashes, then E3 (os-clock-sync-state-change) must NOT be emitted — phc2sys and the PHC are unaffected |
 | FUNC-TBC016-R3 | [§9.5 ptp4l[TT]](#95-t-bc-behavior-on-process-failure) | Given ptp4l[TT] crashes, then the system must report TT ports as Free-Run (in metrics / events). The composite clock state of the system may remain in the previous state if upstream synchronization is unaffected. |
 | FUNC-TBC016-R4 | [§9.5 ts2phc](#95-t-bc-behavior-on-process-failure) | Given ts2phc crashes and restarts within `processDowntimeThresholds.ts2phc`, then no state-change events must be emitted |
-| FUNC-TBC016-R5 | [§9.5 phc2sys](#95-t-bc-behavior-on-process-failure) | Given phc2sys crashes and restarts within `processDowntimeThresholds.phc2sys`, then E3 (os-clock-sync-state-change) must NOT toggle LOCKED→FREERUN→LOCKED, unless the system clock drifts outside the `SysOffsetThreshold` during the downtime |
+| FUNC-TBC016-R5 | [§9.5 phc2sys](#95-t-bc-behavior-on-process-failure) | Given phc2sys crashes and restarts within `processDowntimeThresholds.phc2sys`, then E3 (os-clock-sync-state-change) must NOT toggle LOCKED→FREERUN→LOCKED, unless the system clock drifts outside `SysOffsetOutOfSyncThreshold` during the downtime |
 | FUNC-TBC016-R6 | [§9.5](#95-t-bc-behavior-on-process-failure) | Given a PtpConfig CRD is applied, then `processDowntimeThresholds` must be configurable per process. Default values: 5 s for ptp4l/phc2sys/ts2phc/synce4l/chronyd, 1 s for gpsd/gpspipe. Range: 0–86400 s |
 | FUNC-TBC016-R7 | [§9.5](#95-t-bc-behavior-on-process-failure) | Given any timing process crashes, then it must be automatically restarted |
 
@@ -1384,7 +1384,7 @@ Do **not** cite [ITU-T G.8273.2](#42-normative-references) in §14 traceability 
 | FUNC-TBC020-R4 | [§11.1.3](#1113-dpll-status) | Given a T-BC has a DPLL, then `openshift_ptp_phase_status` and `openshift_ptp_frequency_status` must be emitted with DPLL state values |
 | FUNC-TBC020-R5 | [§11.1.4](#1114-interface-role) | Given a T-BC is running, then `openshift_ptp_interface_role` must be emitted per PTP interface with port state (PASSIVE/SLAVE/MASTER/FAULTY/UNKNOWN/LISTENING) |
 | FUNC-TBC020-R6 | [§11.1.5](#1115-process-health) | Given a T-BC is running, then `openshift_ptp_process_status` (0=DOWN, 1=UP) and `openshift_ptp_process_restart_count` must be emitted per managed process |
-| FUNC-TBC020-R7 | [§11.1.6](#1116-configuration-thresholds) | Given a T-BC is configured, then `openshift_ptp_threshold` must expose the active values of `MaxInSpecOffset`, `LocalMaxHoldoverOffSet`, `inSyncConditionThreshold`, `inSyncConditionTimes`, `ptpSourceQualifiedThreshold`, `ptpSourceDisqualifiedThreshold`, `ptpSourceQualifiedSamples`, `ptpSourceDisqualifiedSamples`, `SysOffsetThreshold`, `SysOffsetInSyncSamples`, and `SysOffsetOutOfSyncSamples` per profile |
+| FUNC-TBC020-R7 | [§11.1.6](#1116-configuration-thresholds) | Given a T-BC is configured, then `openshift_ptp_threshold` must expose the active values of `MaxInSpecOffset`, `LocalMaxHoldoverOffSet`, `inSyncConditionThreshold`, `inSyncConditionTimes`, `ptpSourceQualifiedThreshold`, `ptpSourceDisqualifiedThreshold`, `ptpSourceQualifiedSamples`, `ptpSourceDisqualifiedSamples`, `SysOffsetInSyncThreshold`, `SysOffsetOutOfSyncThreshold`, and `SysOffsetSamples` per profile |
 
 ### 14.21 Observability — Kubernetes Object Status and Events
 

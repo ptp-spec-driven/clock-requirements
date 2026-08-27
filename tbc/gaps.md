@@ -22,7 +22,7 @@
 | G10 | MEDIUM | 6.2 HoldoverCapable | No `HoldoverCapable` concept exists in code. Source loss always enters holdover (T3) regardless of oscillator readiness. Spec says non-capable systems should go to Free-Run (T4) | np-linuxptp-daemon |
 | G11 | MEDIUM | FUNC-TBC016-R1 (ptp4l[TR] crash → holdover) | Holdover entry is driven by log string parsing ("SLAVE to", "ANNOUNCE_RECEIPT_TIMEOUT"). A sudden crash (no log line) may not trigger holdover until the process restarts and re-syncs | np-linuxptp-daemon |
 | G12 | MEDIUM | 12.5 SyncE events edge-triggered | SyncE events (`synce-state-change`, `synce-clock-quality-change`) are implemented but fire on every synce4l log line with no change detection. `PortState.LastQLState` is stored but never used to suppress re-publication | cloud-event-proxy |
-| G13 | MEDIUM | 11.1.6 E3 threshold model | E3 uses legacy `MaxOffsetThreshold`/`MinOffsetThreshold` from `PtpClockThreshold`. The spec's `SysOffsetThreshold`/`SysOffsetInSyncSamples`/`SysOffsetOutOfSyncSamples` fields do not exist anywhere in the codebase | cloud-event-proxy |
+| G13 | MEDIUM | 11.1.6 E3 threshold model | E3 uses legacy `MaxOffsetThreshold`/`MinOffsetThreshold` from `PtpClockThreshold`. The spec's `SysOffsetInSyncThreshold`/`SysOffsetOutOfSyncThreshold`/`SysOffsetSamples` fields do not exist anywhere in the codebase | cloud-event-proxy |
 | G14 | MEDIUM | T-TSC clock class in events | cloud-event-proxy does not enforce clock class 255 for T-TSC. E2 (clock class change) fires on any class change from daemon logs. Spec requires constant 255 and E2 suppression | cloud-event-proxy |
 | G15 | LOW | T-TSC modeling in operator | No `clockType: "T-TSC"` in CRD or webhook. T-TSC is approximated as OC. Clock class 255 enforcement is in np-linuxptp-daemon (`event_tbc.go:230`) but not in operator or cloud-event-proxy | np-ptp-operator |
 | G16 | LOW | Upstream port redundancy (operator) | `upstreamPort` and `leadingInterface` are allowlisted in the webhook but have no validation or reconciliation logic. Dual-upstream T-BC is only a test harness pattern | np-ptp-operator |
@@ -62,7 +62,7 @@
 | G4 | `plugins/ptp_operator/metrics/ptp4lParse.go` | 216-277 | Holdover timer entry drives E3 to FREERUN | Per O-RAN Table 37, E3 should be **HOLDOVER** (not FREERUN) when E1=HOLDOVER and phc2sys is OK |
 | G5 | `plugins/ptp_operator/metrics/metrics.go` | 355-387 | `processDownEvent` emits E3 on any process down | Must distinguish ptp4l[TR] from phc2sys; ptp4l[TR] down must NOT emit E3 |
 | G12 | `plugins/ptp_operator/metrics/logparser.go` | 762-769 | SyncE events published on every log line | Add change detection before publishing |
-| G13 | `plugins/ptp_operator/config/config.go` | 70-80 | Uses `MaxOffsetThreshold`/`MinOffsetThreshold` for phc2sys | Implement `SysOffsetThreshold`/`SysOffsetInSyncSamples`/`SysOffsetOutOfSyncSamples` |
+| G13 | `plugins/ptp_operator/config/config.go` | 70-80 | Uses `MaxOffsetThreshold`/`MinOffsetThreshold` for phc2sys | Implement `SysOffsetInSyncThreshold`/`SysOffsetOutOfSyncThreshold`/`SysOffsetSamples` |
 | G14 | `plugins/ptp_operator/metrics/ptp4lParse.go` | 27-55 | E2 fires on any clock class change from daemon logs | Suppress E2 for T-TSC (class is always 255) |
 
 **Matching requirements (no gap):**
@@ -101,7 +101,7 @@
 6. **G8/G9 (holdover model)**: Remove `LocalHoldoverTimeout` as hard timer for T-BC. Implement quadratic model for 8-hour modules.
 7. **G10 (HoldoverCapable)**: Implement the concept, even as a simple proxy (e.g., HoldoverDataValid = true → capable). Formal criteria FFS.
 8. **G12 (SyncE edge detection)**: Add change guard to SyncE event publishing.
-9. **G13 (SysOffsetThreshold)**: Implement dedicated phc2sys threshold fields (`SysOffsetThreshold`, `SysOffsetInSyncSamples`, `SysOffsetOutOfSyncSamples`).
+9. **G13 (SysOffsetThreshold)**: Implement dedicated phc2sys threshold fields (`SysOffsetInSyncThreshold`, `SysOffsetOutOfSyncThreshold`, `SysOffsetSamples`).
 10. **G14 (T-TSC E2 suppression)**: Suppress E2 in cloud-event-proxy for T-TSC profiles.
 
 ### Nice to have (LOW)

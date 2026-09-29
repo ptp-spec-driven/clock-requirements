@@ -6,7 +6,7 @@
 
 **Created**: 2026-06-16
 
-**Last Updated**: 2026-08-26
+**Last Updated**: 2026-09-10
 
 **Version**: release-5.1
 
@@ -140,7 +140,7 @@ For T-TSC (Telecom Time Synchronous Clock) requirements, see [T-TSC spec](../tts
 
 Per O-RAN WG4 TS CUS [[I2]](#43-informative-references) [[I1]](#43-informative-references) §11.2.2, the T-BC is applicable to the **LLS-C1**, **LLS-C2**, and **LLS-C3** low-level split synchronization configurations. **LLS-C4** is not applicable — the reference is provided locally (e.g. GNSS) with no transport network involvement, hence no boundary clocks in the chain.
 
-> **Scope note**: Only **LLS-C1**, **LLS-C2**, and **LLS-C3**  with full timing support are in scope for this specification. No other LLS configurations are considered.
+> **Scope note**: Only **LLS-C1**, **LLS-C2**, and **LLS-C3**  with full timing support are in scope for this specification. No other LLS configurations are considered. "Full timing support" is realized by the [G.8275.1](#42-normative-references) profile; see §5.1.2 for the normative profile scope.
 
 The T-BC role differs per configuration:
 
@@ -183,6 +183,24 @@ Configuration LLS-C3 — PRTC/T-GM directly to O-RU:
   Timing distributed PRTC/T-GM → O-RU; O-DU not required on the
   synchronization path.
 ```
+
+#### 5.1.2 Profile Scope
+
+This specification separates two orthogonal axes that must not be conflated:
+
+| Axis | Selected by | Determines |
+| :--- | :--- | :--- |
+| **PTP profile** | `ptpProfile` (§13.1.1) | Protocol behavior: transport, delay mechanism, BMCA variant, domain number range, message rates, and other profile-mandated parameters |
+| **Compliance class** | `complianceClass` (§13.1.2) | Performance limits: [G.8273.2](#42-normative-references) class C/D noise generation, tolerance, transfer, and transient limits (§15) |
+
+**Normative profile scope (release 5.1):**
+
+- The **only normatively in-scope profile is [ITU-T G.8275.1](#42-normative-references)** (phase/time with full timing support from the network). All conformance claims for §14 and §15 are made against G.8275.1.
+- The following requirement groups are **profile-independent** and apply to any PTP profile that instantiates a T-BC with upstream (TR) and downstream (TT) ports: the state machine (§6), synchronization direction and hardware reconfiguration (§7), announce semantics (§8), process orchestration (§9), clock component monitoring (§10), observability (§11), events (§12), the user contract (§13), functional requirements (§14), and security behavior (§16).
+- The following are **profile-bound** and derive their values from the active profile binding (§5.8): transport, delay mechanism, BMCA variant, domain number range, message rates, and the performance reference recommendation (§15).
+- Profiles other than G.8275.1 (e.g. G.8275.2, G.8265.1) are listed in §13.1.1 for taxonomy and admission-time validation only. They are **not conformance targets** of this specification in release 5.1.
+
+> **Why this matters:** behavioral requirements are written once and remain valid across profiles; only the protocol-parameter set and the performance reference change. A profile change does not fork this document — it selects a different row in the profile binding table (§5.8) and, where applicable, a different performance reference.
 
 ### 5.2 Supported Topologies
 - Single-NIC T-BC (one NIC with TR + TT ports)
@@ -289,18 +307,37 @@ A T-BC may be configured with multiple upstream (TR) ports on a single NIC for r
 **Behavioral requirements for redundant upstream ports:**
 
 - The ptp4l[TR] instance operates on all configured upstream ports simultaneously
-- The Alternate Best Master Clock Algorithm (A-BMCA) per [G.8275.1](#42-normative-references) selects the active upstream source
+- The Alternate Best Master Clock Algorithm (A-BMCA) per the active profile binding (§5.8) selects the active upstream source
 - `ValidSourceAvailable` is TRUE when **at least one** upstream port ptp4l servo is in the S2/S3 (SLAVE) state
 - `NoValidSourceAvailable` is TRUE only when **all** upstream ports have lost SLAVE state
 - During a switchover (one port loses SLAVE, A-BMCA promotes another), there is a brief gap where no port is SLAVE. Entering holdover during this gap is correct because the DPLL is not being disciplined by PTP, and the ptp4l servo is not in the S2/S3 (SLAVE) state. When the new port reaches SLAVE, the PTPSourceQualified filter confirms stability before exiting holdover
 - If the switchover resolves (a new port reaches SLAVE) within `processDowntimeThresholds.ptp4l` (default 5 s), holdover state-change events must be suppressed to avoid brief HOLDOVER→LOCKED toggles. This aligns switchover behavior with ptp4l[TR] process failure handling (see section 9.5)
 - The `leadingInterface` setting determines which upstream port's offset is used for state machine decisions when multiple ports are in SLAVE state
 
-5.7 Actors
+### 5.7 Actors
 - Cluster Administrator: configures T-BC profiles and thresholds
 - Downstream PTP nodes: consume Announce/Sync from TT ports
 - Upstream PTP nodes: provide Announce/Sync to TR ports
 - Monitoring systems: subscribe to clock state events
+
+### 5.8 Profile Binding
+
+The active profile is selected by `ptpProfile` (§13.1.1). This table is the **single normative home** for the values that the profile imposes on the T-BC; the body of this specification refers to "the active profile binding" rather than restating profile-specific values inline. The release-5.1 binding is [ITU-T G.8275.1](#42-normative-references):
+
+| Parameter | Bound value | Source |
+| :--- | :--- | :--- |
+| `network_transport` | `L2` (multicast) | [G.8275.1](#42-normative-references) §6 |
+| `delay_mechanism` | `E2E` | [G.8275.1](#42-normative-references) §6 |
+| `time_stamping` | `hardware` | Telecom accuracy requirement |
+| `dataset_comparison` | [G.8275.x](#42-normative-references) (alternate BMCA) | [G.8275.1](#42-normative-references) §6 |
+| `priority1` | `128` (ignored by alternate BMCA) | [G.8275.1](#42-normative-references) §6 |
+| `domainNumber` | `24`–`43` (default `24`) | [G.8275.1](#42-normative-references) Table A.1 |
+| `logSyncInterval` | `-4` (16/s) default | [G.8275.1](#42-normative-references) Table A.5 |
+| `logAnnounceInterval` | `-3` (8/s) default | [G.8275.1](#42-normative-references) Table A.5 |
+| `transportSpecific` | `0x0` | [G.8275.1](#42-normative-references) |
+| BMCA variant | Alternate BMCA (A-BMCA) | [G.8275.1](#42-normative-references) §6 |
+
+Changes to the active profile binding must be made here and in the admission-time validation rules of §13.1.1 only. Requirement IDs in §14/§15 do not change when the profile changes; see §5.1.2 for the profile-independence model.
 
 ---
 
@@ -1058,32 +1095,26 @@ The user declares the desired clock role and the [IEEE 1588](#42-normative-refer
 
 [IEEE 1588](#42-normative-references) defines a profile mechanism (§20.3) allowing industry organizations to specify parameter selections and optional features for specific applications. Profiles are grouped by industry:
 
-| Category | Profile | Standard | Transport | Delay | Accuracy | Clock Types |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Telecom** | Full timing support | [ITU-T G.8275.1](#42-normative-references) | L2 multicast | E2E | ns-level | T-GM, T-BC, T-TSC |
-| **Telecom** | Partial timing support | [ITU-T G.8275.2](#42-normative-references) | UDP unicast | E2E | ns-level | T-GM, T-BC-P, T-TSC-P |
-| **Telecom** | Frequency only | ITU-T G.8265.1 | UDP unicast | E2E | — | OC (freq) |
-| **Telecom** | APTS | [ITU-T G.8275.1](#42-normative-references) + GNSS fallback | L2 multicast | E2E | ns-level | T-GM with GNSS + PTP backup |
-| **Power** | Substation automation | IEC/IEEE 61850-9-3 | L2 multicast | P2P | µs-level | OC, BC, TC |
-| **Power** | Power system relay | IEEE C37.238-2017 | L2 multicast | P2P | µs-level | OC, BC, TC |
-| **Media** | Broadcast / IP video | SMPTE ST 2059-2 | L2/UDP | P2P | sub-ms | OC, BC |
-| **Media** | Audio-over-IP | AES67 | L2/UDP | — | sub-ms | OC, BC |
-| **TSN** | Time-Sensitive Networking | IEEE 802.1AS-2025 (gPTP) | L2 | P2P | µs-level | GM, bridge |
-| **Enterprise** | Enterprise mixed | IETF RFC 9760 | UDP | E2E | sub-ms | OC, BC |
-| **Default** | [IEEE 1588](#42-normative-references) default E2E | [IEEE 1588](#42-normative-references) Annex J | L2/UDP | E2E | varies | OC, BC, TC |
-| **Default** | [IEEE 1588](#42-normative-references) default P2P | [IEEE 1588](#42-normative-references) Annex J | L2/UDP | P2P | varies | OC, BC, TC |
+| Category | Profile | Standard | Transport | Delay | Accuracy | Clock Types | In scope (release 5.1) |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Telecom** | Full timing support | [ITU-T G.8275.1](#42-normative-references) | L2 multicast | E2E | ns-level | T-GM, T-BC, T-TSC | **Yes** (conformance target) |
+| **Telecom** | Partial timing support | [ITU-T G.8275.2](#42-normative-references) | UDP unicast | E2E | ns-level | T-GM, T-BC-P, T-TSC-P | No — taxonomy only |
+| **Telecom** | Frequency only | ITU-T G.8265.1 | UDP unicast | E2E | — | OC (freq) | No — taxonomy only |
+| **Telecom** | APTS | [ITU-T G.8275.1](#42-normative-references) + GNSS fallback | L2 multicast | E2E | ns-level | T-GM with GNSS + PTP backup | No — taxonomy only |
+| **Power** | Substation automation | IEC/IEEE 61850-9-3 | L2 multicast | P2P | µs-level | OC, BC, TC | No — taxonomy only |
+| **Power** | Power system relay | IEEE C37.238-2017 | L2 multicast | P2P | µs-level | OC, BC, TC | No — taxonomy only |
+| **Media** | Broadcast / IP video | SMPTE ST 2059-2 | L2/UDP | P2P | sub-ms | OC, BC | No — taxonomy only |
+| **Media** | Audio-over-IP | AES67 | L2/UDP | — | sub-ms | OC, BC | No — taxonomy only |
+| **TSN** | Time-Sensitive Networking | IEEE 802.1AS-2025 (gPTP) | L2 | P2P | µs-level | GM, bridge | No — taxonomy only |
+| **Enterprise** | Enterprise mixed | IETF RFC 9760 | UDP | E2E | sub-ms | OC, BC | No — taxonomy only |
+| **Default** | [IEEE 1588](#42-normative-references) default E2E | [IEEE 1588](#42-normative-references) Annex J | L2/UDP | E2E | varies | OC, BC, TC | No — taxonomy only |
+| **Default** | [IEEE 1588](#42-normative-references) default P2P | [IEEE 1588](#42-normative-references) Annex J | L2/UDP | P2P | varies | OC, BC, TC | No — taxonomy only |
+
+Only the G.8275.1 row is a conformance target of this specification (see §5.1.2). The remaining rows describe profiles the system can be configured with or must recognize at admission time, but for which this specification makes **no** behavioral or performance conformance claim.
 
 When a profile is designated, certain PTP parameters are fixed by the profile and must not be overridden by the user. The system must reject invalid combinations at admission time with an informative error identifying the violating parameter.
 
-**Example: [G.8275.1](#42-normative-references) profile-mandated parameters:**
-
-| Parameter | Mandated value | Rationale |
-| :--- | :--- | :--- |
-| `network_transport` | `L2` | [G.8275.1](#42-normative-references) requires Layer 2 multicast transport |
-| `delay_mechanism` | `E2E` | [G.8275.1](#42-normative-references) requires end-to-end delay measurement |
-| `time_stamping` | `hardware` | Software timestamping is insufficient for telecom accuracy |
-| `dataset_comparison` | [G.8275.x](#42-normative-references) | Required for [G.8275.1](#42-normative-references) alternate BMCA behavior |
-| `priority1` | `128` | [G.8275.1](#42-normative-references) alternate BMCA ignores priority1; value must remain at 128 |
+**Active profile-mandated parameters:** the normative values for the active profile are defined once in the profile binding table (§5.8). This section does not restate them; §5.8 is authoritative.
 
 **T-BC clock-type-specific mandated parameters (regardless of profile):**
 
@@ -1107,7 +1138,7 @@ When a profile is designated, certain PTP parameters are fixed by the profile an
 | `processDowntimeThresholds.phc2sys` | `5` | 0–86400 (s) | Acceptable downtime before E3 events are emitted (§9.5) |
 | `processDowntimeThresholds.ts2phc` | `5` | 0–86400 (s) | Acceptable downtime before events are emitted (§9.5) |
 
-Profiles not carrying a designation are treated as unconstrained and may set any `ptp4l` parameter to any value. The system must never silently restrict an undesignated profile.
+Profiles not carrying a designation are treated as unconstrained and may set any `ptp4l` parameter to any value. The system must never silently restrict an undesignated profile. Such profiles are accepted for configuration but are **not conformance targets** of this specification (see §5.1.2).
 
 #### 13.1.2 Compliance Class
 
@@ -1118,6 +1149,8 @@ The user declares the target ITU-T compliance class. This affects performance th
 | `complianceClass` | `C`, `D` | Determines applicable [G.8273.2](#42-normative-references) performance limits (noise generation, noise tolerance, noise transfer bandwidth). Class D imposes stricter low-pass filtered time error limits (see §15) |
 
 The compliance class is informational for the state machine but constraining for performance validation. The system must expose the configured compliance class in metrics and status for external validation tools.
+
+`complianceClass` is orthogonal to `ptpProfile` (§5.1.2): the profile selects protocol behavior (transport, delay mechanism, BMCA variant, message rates), while the compliance class selects the performance limits applied to that behavior. Changing the profile does not change §14 functional behavior; changing the class does not change protocol behavior. A conformance claim in §15 requires both a profile and a class to be specified.
 
 #### 13.1.3 Hardware Configuration (Clock Chain)
 
@@ -1159,6 +1192,8 @@ Functional requirements in this section express **testable product behavior** de
 | **Spec traceability** | Parent section(s) in this document that define the behavior under test | Markdown hyperlinks to §6–§13 anchors (e.g. `[§6.3 InSync](#63-state-transition-conditions)`) |
 
 Do **not** cite [ITU-T G.8273.2](#42-normative-references) in §14 traceability — use §15 for performance limits. Jira test cases (TELCOSTRAT-392) must reference FUNC-TBC* IDs.
+
+**Profile applicability convention (§14 only):** every FUNC-TBC* requirement is **profile-independent** (`Any`) — it expresses behavior of the T-BC state machine, events, holdover model, observability, or resiliency, none of which change with the PTP profile. Profile-bound protocol parameters (transport, delay mechanism, BMCA variant, domain, message rates) are not functional requirements in this section; they are fixed by the active profile binding (§5.8) and validated at admission time (§13.1.1). If a future FUNC-TBC* requirement is profile-specific, its requirement text must name the profile explicitly and the requirement is then applicable only to that profile.
 
 ### 14.1 State Machine — Lock Acquisition
 
@@ -1419,6 +1454,8 @@ Do **not** cite [ITU-T G.8273.2](#42-normative-references) in §14 traceability 
 
 Performance requirements in this section trace **directly** to [ITU-T G.8273.2](#42-normative-references) ([Recommendation ITU-T G.8273.2](https://www.itu.int/rec/T-REC-G.8273.2/en)) — Timing characteristics of telecom boundary clocks and telecom time slave clocks. They are distinct from §14 functional behavior.
 
+**Profile and class applicability (§15 only):** G.8273.2 is the performance recommendation for **full timing support**, i.e. the [G.8275.1](#42-normative-references) profile. Every PERF-TBC* requirement in this section is therefore applicable to **G.8275.1** (see §5.1.2 and the profile binding in §5.8) and is parameterized by the `complianceClass` (§13.1.2), which supplies the class C/D limit. Partial timing support (G.8275.2) is governed by ITU-T G.8273.4 and is **out of scope** for this specification; no PERF-TBC* requirement is claimed for it.
+
 **Traceability conventions (§15 only)**
 
 | Column | Meaning | Link target |
@@ -1514,6 +1551,8 @@ The holdover performance requirements bound the maximum excursions in the PTP an
 
 The PTP Operator Stack supports **PTP transport security** to protect the synchronization plane against unauthorized access, spoofing, and man-in-the-middle attacks.
 
+The security mechanism is determined by the transport of the active profile binding (§5.8): the release-5.1 [G.8275.1](#42-normative-references) profile uses Layer 2 multicast, for which MACsec applies. IPsec/TLS applies to Layer 3/4 transports (e.g. G.8275.2) and is out of scope (see §5.1.2).
+
 #### 16.1.1 Supported Transport Security Mechanism
 
 | Mechanism | Description |
@@ -1525,7 +1564,7 @@ The PTP Operator Stack supports **PTP transport security** to protect the synchr
 
 | Requirement ID | Requirement text |
 | :--- | :--- |
-| SEC-TBC001 | The system must support configuration of MACsec on PTP-carrying links for G.8275.1 profiles |
+| SEC-TBC001 | The system must support configuration of MACsec on PTP-carrying links for profiles whose transport is Layer 2 multicast (the release-5.1 active profile binding is G.8275.1, §5.8) |
 | SEC-TBC002 | MACsec key management (static pre-shared keys or MKA/802.1X) must be configurable via the PtpConfig custom resource or a referenced secret |
 | SEC-TBC003 | Enabling MACsec must not cause the PTP state machine to behave differently from non-secured operation; the synchronization chain behavior (§6) must be identical |
 | SEC-TBC004 | The system must not transmit or forward PTP messages over unsecured links when MACsec is configured and the link security association is not established |

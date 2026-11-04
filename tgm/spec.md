@@ -359,20 +359,21 @@ The T-GM supports four clock states. State names and semantics are derived from 
 
 ### 6.3 Composite State Evaluation
 
-The T-GM clock state is derived from the combined states of three independent subsystems. The composite state is the _lowest-quality_ (most degraded) state among the active subsystems.
+The T-GM clock state is derived from the GNSS source, the **leading DPLL** (the DPLL disciplined by GNSS), and the associated PHC synchronisation. In a multi-card topology, downstream/follower DPLLs are disciplined by the leading DPLL's PPS and are not independent time-quality references for the composite holdover state. The composite state is determined by the leading synchronization chain, subject to the downstream-fault rule below.
 
 | Subsystem        | Inputs                                                                                           | States reported                                       |
 | :--------------- | :----------------------------------------------------------------------------------------------- | :---------------------------------------------------- |
 | GNSS monitor     | Satellite 3D fix status, anti-spoofing state, GNSS offset, and time accuracy estimation (`tAcc`) | LOCKED, FREERUN                                       |
-| DPLL             | Frequency circuit state, phase circuit state, and DPLL phase offset                              | LOCKED (implies Holdover Acquired), HOLDOVER, FREERUN |
+| Leading DPLL     | GNSS-disciplined frequency circuit state, phase circuit state, and leading DPLL phase offset     | LOCKED (implies Holdover Acquired), HOLDOVER, FREERUN |
 | PHC synchroniser | PHC-to-reference offset against threshold, and `ts2phc` servo state                              | LOCKED, HOLDOVER, UNLOCKED                            |
 
 **Composite state evaluation rules:**
 
 1. If all subsystems that report a state report LOCKED, the composite state shall be LOCKED.
-2. If the DPLL reports HOLDOVER (because GNSS reference is lost), the composite state shall be HOLDOVER. The system shall not report FREERUN solely because the GNSS monitor reports FREERUN due to source loss — it shall wait for the DPLL to transition out of holdover before reporting FREERUN.
-3. HOLDOVER shall be subdivided into in-spec and out-of-spec based on the holdover time error budget (see §6.8).
-4. If any subsystem reports FREERUN and no subsystem reports HOLDOVER, the composite state shall be FREERUN.
+2. The leading DPLL's HOLDOVER state (because its GNSS reference is lost) drives composite holdover entry. The system shall not report FREERUN solely because the GNSS monitor reports FREERUN due to source loss — it shall wait for the leading DPLL to leave holdover before reporting FREERUN.
+3. Holdover-in-spec/out-of-spec classification and drift estimation use only the leading DPLL's holdover budget and drift. A downstream/follower DPLL may continue to report LOCKED while receiving PPS from a leading DPLL in holdover; that status neither prevents composite holdover nor changes its classification.
+4. If any downstream/follower DPLL loses synchronization (reports a loss of lock/FREERUN or equivalent fault), this is an unexpected hardware or software fault, not a source-loss holdover event. The composite state shall transition immediately to FREERUN from any non-Free-Run state, without entering or remaining in either holdover sub-state.
+5. If a leading-chain subsystem reports FREERUN and the leading DPLL is not in HOLDOVER, the composite state shall be FREERUN.
 
 ### 6.4 State Transition Conditions
 
@@ -382,11 +383,12 @@ The following conditions govern transitions between states. Each condition is ev
 | :---------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------- |
 | **GNSSAvailable**             | GNSS receiver has a valid 3D fix (fix status ≥ 3) and GNSS clock offset is within the configured threshold                                                                                                                  | `gnssOffsetThreshold`                              |
 | **GNSSLost**                  | GNSS receiver has lost valid fix (fix status < 3), detected spoofing or jamming, or NMEA data is unavailable                                                                                                                | —                                                  |
-| **AllLocked**                 | All subsystems report LOCKED simultaneously: GNSS fix valid, GNSS offset within threshold, DPLL frequency and phase status both LOCKED, DPLL phase offset within in-spec threshold, PHC locked, PHC offset within threshold | `inSyncConditionThreshold`, `inSyncConditionTimes` |
-| **HoldoverDataValid**         | DPLL is in HOLDOVER or LOCKED_HO_ACQ state — the OCXO has sufficient holdover data to maintain timing                                                                                                                       | —                                                  |
-| **Offset-Above-InSpecOffset** | Measured or estimated phase offset exceeds `MaxInSpecOffset`, or elapsed holdover time exceeds `LocalHoldoverTimeout`                                                                                                       | `MaxInSpecOffset`, `LocalHoldoverTimeout`          |
-| **Holdover-To-FreeRun**       | Measured or estimated phase offset exceeds `LocalMaxHoldoverOffSet`                                                                                                                                                         | `LocalMaxHoldoverOffSet`                           |
-| **NonGNSSFault**              | A non-GNSS-loss fault prevents time traceability (e.g., PHC synchroniser enters FREERUN while DPLL is LOCKED, or a process crash is detected)                                                                               | —                                                  |
+| **AllLocked**                 | All leading-chain subsystems report LOCKED simultaneously: GNSS fix valid, GNSS offset within threshold, leading DPLL frequency and phase status both LOCKED, leading DPLL phase offset within in-spec threshold, leading PHC locked, PHC offset within threshold | `inSyncConditionThreshold`, `inSyncConditionTimes` |
+| **HoldoverDataValid**         | The leading DPLL is in HOLDOVER or LOCKED_HO_ACQ state — its OCXO has sufficient holdover data to maintain timing | — |
+| **Offset-Above-InSpecOffset** | The leading DPLL's measured or estimated phase offset exceeds `MaxInSpecOffset`, or elapsed holdover time exceeds `LocalHoldoverTimeout` | `MaxInSpecOffset`, `LocalHoldoverTimeout` |
+| **Holdover-To-FreeRun**       | The leading DPLL's measured or estimated phase offset exceeds `LocalMaxHoldoverOffSet` | `LocalMaxHoldoverOffSet` |
+| **NonGNSSFault**              | A fault in the leading synchronization chain prevents time traceability (e.g., leading PHC synchroniser enters FREERUN while the leading DPLL is LOCKED, or a process crash is detected) | — |
+| **DownstreamDPLLFault**       | Any downstream/follower DPLL loses synchronization to the leading DPLL's PPS (reports FREERUN, loss of lock, or equivalent fault) | — |
 
 ### 6.5 State Transition Table
 
@@ -394,8 +396,9 @@ The following conditions govern transitions between states. Each condition is ev
 | :-- | :----------------------- | :------------------- | :------------------------------------- | :----------------------------------------------------------- |
 | T1  | **Init**                 | Free-Run             | Always (initialisation complete)       | Determine clock type from configuration; start processes     |
 | T2  | **Free-Run**             | Locked               | AllLocked condition met                | Update announce to GNSS-locked parameters (class 6)          |
-| T3  | **Locked**               | Holdover-In-Spec     | GNSSLost AND HoldoverDataValid         | Start holdover timer; update announce to local (class 7)     |
+| T3  | **Locked**               | Holdover-In-Spec     | GNSSLost AND leading-DPLL HoldoverDataValid | Start leading-DPLL holdover timer; update announce to local (class 7) |
 | T4  | **Locked**               | Free-Run             | NonGNSSFault condition                 | Update announce to local (class 248)                         |
+| T10 | **Any non-Free-Run state** | Free-Run             | DownstreamDPLLFault                    | Immediately update announce to local (class 248); do not classify as holdover |
 | T5  | **Holdover-In-Spec**     | Locked               | AllLocked condition met                | Stop holdover timer; restore GNSS-locked announce parameters |
 | T6  | **Holdover-In-Spec**     | Holdover-Out-Of-Spec | Offset-Above-InSpecOffset AND GNSSLost | Update announce (class 140, timeTraceable=FALSE)             |
 | T7  | **Holdover-In-Spec**     | Free-Run             | Holdover-To-FreeRun condition          | Update announce (class 248)                                  |
@@ -938,12 +941,13 @@ Functional requirements in this section express **testable product behaviour** d
 | Requirement ID | Spec traceability                                                                                   | Requirement text                                                                                                                                                                                                                                |
 | :------------- | :-------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | FUNC-TGM001-R1 | [§6.4 AllLocked](#64-state-transition-conditions)                                                   | Given a T-GM is initialised in Free-Run state, when GNSS is acquired and all lock conditions are met (GNSS fix valid, DPLL locked, PHC locked, all offsets within threshold), then the T-GM must transition to Locked state                     |
-| FUNC-TGM001-R2 | [§6.4 GNSSLost](#64-state-transition-conditions), [T3](#65-state-transition-table)                  | Given a T-GM is in Locked state, when the GNSS reference is lost and the DPLL enters holdover or locked-holdover-acquired, then the T-GM must transition to Holdover-In-Spec                                                                    |
-| FUNC-TGM001-R3 | [§6.4 Offset-Above-InSpecOffset](#64-state-transition-conditions), [T6](#65-state-transition-table) | Given a T-GM is in Holdover-In-Spec, when the measured phase offset exceeds `MaxInSpecOffset` or the holdover timer exceeds `LocalHoldoverTimeout`, then the T-GM must transition to Holdover-Out-Of-Spec                                       |
-| FUNC-TGM001-R4 | [§6.4 Holdover-To-FreeRun](#64-state-transition-conditions), [T7/T9](#65-state-transition-table)    | Given a T-GM is in any Holdover state, when the measured or estimated phase offset exceeds `LocalMaxHoldoverOffSet`, then the T-GM must transition to Free-Run                                                                                  |
+| FUNC-TGM001-R2 | [§6.3–§6.5](#63-composite-state-evaluation), [T3](#65-state-transition-table) | Given a T-GM is in Locked state, when the GNSS reference is lost and the leading (GNSS-disciplined) DPLL enters holdover or locked-holdover-acquired, then the T-GM must transition to Holdover-In-Spec; holdover classification and drift are based on that leading DPLL |
+| FUNC-TGM001-R3 | [§6.4 Offset-Above-InSpecOffset](#64-state-transition-conditions), [T6](#65-state-transition-table) | Given a T-GM is in Holdover-In-Spec, when the leading DPLL's measured or estimated phase offset exceeds `MaxInSpecOffset` or the holdover timer exceeds `LocalHoldoverTimeout`, then the T-GM must transition to Holdover-Out-Of-Spec                                       |
+| FUNC-TGM001-R4 | [§6.4 Holdover-To-FreeRun](#64-state-transition-conditions), [T7/T9](#65-state-transition-table)    | Given a T-GM is in any Holdover state, when the leading DPLL's measured or estimated phase offset exceeds `LocalMaxHoldoverOffSet`, then the T-GM must transition to Free-Run                                                                                  |
 | FUNC-TGM001-R5 | [§6.4 AllLocked](#64-state-transition-conditions), [T5/T8](#65-state-transition-table)              | Given a T-GM is in any Holdover or Free-Run state, when GNSS reference is re-acquired and all lock conditions are met per FUNC-TGM001-R1, then the T-GM must transition to Locked                                                               |
-| FUNC-TGM001-R6 | [§6.4 NonGNSSFault](#64-state-transition-conditions), [T4](#65-state-transition-table)              | Given a T-GM is in Locked state, when a non-GNSS-loss fault occurs that prevents time traceability (e.g., PHC synchroniser enters FREERUN while DPLL is LOCKED, or a process crash is detected), then the T-GM must transition to Free-Run      |
-| FUNC-TGM001-R7 | [§7](#7-synchronisation-direction)                                                                  | Given a T-GM enters Holdover, it must maintain a unidirectional signal flow without reversing the synchronisation direction                                                                                                                     |
+| FUNC-TGM001-R6 | [§6.4 NonGNSSFault](#64-state-transition-conditions), [T4](#65-state-transition-table) | Given a T-GM is in Locked state, when a fault in the leading synchronization chain prevents time traceability (e.g., the leading PHC synchroniser enters FREERUN or a process crash is detected), then the T-GM must transition to Free-Run |
+| FUNC-TGM001-R7 | [§7](#7-synchronisation-direction) | Given a T-GM enters Holdover, it must maintain a unidirectional signal flow without reversing the synchronisation direction |
+| FUNC-TGM001-R8 | [§6.3–§6.5](#63-composite-state-evaluation), [T10](#65-state-transition-table) | Given any downstream/follower DPLL loses synchronization to the leading DPLL's PPS, then the overall T-GM state must transition immediately to Free-Run, not either holdover state, regardless of the leading DPLL's state |
 
 ### 15.2 Initialisation — Clock Type and Initial State
 

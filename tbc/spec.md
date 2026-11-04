@@ -387,17 +387,20 @@ In the Free-Run state the system is trying to acquire frequency and phase from t
 
 The following conditions govern transitions between states. Each condition is evaluated continuously by the supervision software.
 
+**Multi-card leading/downstream distinction:** The leading interface is the card with the upstream TimeReceiver (TR) port, selected by `leadingInterface` where applicable. Its DPLL is the **leading DPLL** and is disciplined from upstream PTP-derived timing. DPLLs on downstream cards are disciplined by PPS from the leading DPLL. Only the leading interface's source-loss/DPLL holdover state triggers composite Holdover-In-Spec, and only its drift/offset budget determines Holdover-In-Spec versus Holdover-Out-Of-Spec. Downstream DPLLs may report LOCKED while the leading DPLL is in holdover: they see an incoming PPS and have no visibility into its traceability or quality. Conversely, loss of synchronization by any downstream DPLL is an unexpected hardware/software fault, not a holdover event; the composite clock must go immediately to Free-Run from any non-Free-Run state.
+
 | Condition Name | Definition | Parameters |
 | :--- | :--- | :--- |
 | **ValidSourceAvailable** | The ptp4l servo on at least one of the configured upstream (TR) ports has reached the S2 (SLAVE) state as defined in [IEEE 1588](#42-normative-references). S3 is also accepted where applicable. This is the logical inverse of NoValidSourceAvailable | — |
 | **NoValidSourceAvailable** | No upstream (TR) port ptp4l servo is in the S2/S3 (SLAVE) state. This occurs on Announce timer expiry or port state change away from SLAVE | — |
 | **PTPSourceQualified** | The upstream PTP source on the active TR port has been validated as stable. When `ptpSourceUseS3` is TRUE, the source is qualified when ptp4l reaches the S3 (SERVO_LOCKED_STABLE) servo state, and disqualified when ptp4l leaves S3/S2 or NoValidSourceAvailable occurs. When `ptpSourceUseS3` is FALSE (default), the source is qualified when ValidSourceAvailable is TRUE AND ptp4l master offset ≤ `ptpSourceQualifiedThreshold` for `ptpSourceQualifiedSamples` consecutive samples; it is disqualified when ptp4l master offset > `ptpSourceDisqualifiedThreshold` for `ptpSourceDisqualifiedSamples` consecutive samples OR NoValidSourceAvailable. This condition is used for enabling DPLL inputs (hardware sync direction PHC→DPLL) and gating the startup of `phc2sys` (and downstream `ts2phc`). | `ptpSourceQualifiedThreshold`, `ptpSourceDisqualifiedThreshold`, `ptpSourceQualifiedSamples`, `ptpSourceDisqualifiedSamples`, `ptpSourceUseS3` |
 | **InSync** | ValidSourceAvailable AND worst-case phase offset (across ptp4l, DPLL, ts2phc measurement points) ≤ inSyncConditionThreshold for inSyncConditionTimes consecutive samples AND all PPS DPLLs in "Locked Holdover Acquired" | `inSyncConditionThreshold`, `inSyncConditionTimes` |
-| **HoldoverDataValid** | All PPS DPLLs have "Locked Holdover Acquired" as their current state | — |
-| **HoldoverCapable** | The system can satisfy holdover requirements. Current baseline: equivalent to HoldoverDataValid (all PPS DPLLs in "Locked Holdover Acquired"). **GA REQUIREMENT**: this baseline is insufficient for general availability. A production-grade definition must incorporate syntonization criteria — e.g., fractional frequency offset (FFO) within bounds specified by the oscillator manufacturer, sustained for a minimum qualifying period — to confirm the OCXO has converged before certifying holdover capability. Without FFO-based qualification, the system may enter holdover with an uncalibrated oscillator, yielding drift far exceeding the modeled ΔT(t) | — |
-| **Locked-To-FreeRun** | (**NoValidSourceAvailable** AND the system is not **HoldoverCapable**) OR any of the monitored phase offsets exceeds `LocalMaxHoldoverOffSet`. The first path (NOT HoldoverCapable) is expected only during early operation before the DPLL reaches LHAQ — once LHAQ is achieved, source loss routes through T3 (holdover) instead. The second path (offset spike) can fire at any time while Locked |`LocalMaxHoldoverOffSet` |
-| **Offset-Above-InSpecOffset** | Any of the estimated or reported DPLL phase offsets exceeds MaxInSpecOffset. | `MaxInSpecOffset` |
-| **Holdover-To-FreeRun** | Any of the estimated phase offsets exceeds LocalMaxHoldoverOffSet | `LocalMaxHoldoverOffSet` |
+| **HoldoverDataValid** | The leading DPLL has "Locked Holdover Acquired" as its current state | — |
+| **HoldoverCapable** | The leading DPLL can satisfy holdover requirements. Current baseline: equivalent to the leading DPLL reporting "Locked Holdover Acquired". **GA REQUIREMENT**: this baseline is insufficient for general availability. A production-grade definition must incorporate syntonization criteria — e.g., fractional frequency offset (FFO) within bounds specified by the oscillator manufacturer, sustained for a minimum qualifying period — to confirm the leading OCXO has converged before certifying holdover capability. | — |
+| **Locked-To-FreeRun** | (**NoValidSourceAvailable** AND the leading DPLL is not **HoldoverCapable**) OR the leading interface's monitored phase offset exceeds `LocalMaxHoldoverOffSet`. The first path is expected only before the leading DPLL reaches LHAQ; the offset-spike path can fire at any time while Locked | `LocalMaxHoldoverOffSet` |
+| **Offset-Above-InSpecOffset** | The estimated or reported leading DPLL phase offset exceeds `MaxInSpecOffset`. | `MaxInSpecOffset` |
+| **Holdover-To-FreeRun** | The estimated leading-interface phase offset exceeds `LocalMaxHoldoverOffSet`. | `LocalMaxHoldoverOffSet` |
+| **DownstreamDPLLFault** | Any downstream-card DPLL loses synchronization to the leading DPLL's PPS (reports FREERUN, loss of lock, or equivalent fault) | — |
 
 ### 6.4 State Transition Table
 
@@ -405,8 +408,9 @@ The following conditions govern transitions between states. Each condition is ev
 | :--- | :--- | :--- | :--- | :--- |
 | T1 | **Init** | Free-Run | Always (initialization complete) | Determine clock type from configuration; start processes |
 | T2 | **Free-Run** | Locked | InSync condition met | Forward upstream GM data via IWF to TT ports |
-| T3 | **Locked** | Holdover-In-Spec | NoValidSourceAvailable AND HoldoverDataValid AND HoldoverCapable| Reverse hardware sync direction (DPLL→PHC); restart ptp4l[TR] in monitor mode; start ts2phc ToD transfer; update announce to local (class 135) |
+| T3 | **Locked** | Holdover-In-Spec | NoValidSourceAvailable AND HoldoverDataValid AND HoldoverCapable | Reverse the leading interface's hardware sync direction (leading DPLL→PHC); downstream DPLLs remain disciplined by its PPS; restart ptp4l[TR] in monitor mode; start ts2phc ToD transfer; update announce to local (class 135) |
 | T4 | **Locked** | Free-Run | Locked-To-FreeRun condition | Update announce to local (class 248); configurable — can be disabled |
+| T10 | **Any non-Free-Run state** | Free-Run | DownstreamDPLLFault | Immediately update announce to local (class 248); do not classify as holdover |
 | T5 | **Holdover-In-Spec** | Locked | InSync condition met | Reverse hardware sync direction back (PHC→DPLL); restore upstream GM forwarding |
 | T6 | **Holdover-In-Spec** | Holdover-Out-Of-Spec | Offset-Above-InSpecOffset AND NoValidSourceAvailable | Update announce (class 165, timeTraceable=FALSE) |
 | T7 | **Holdover-In-Spec** | Free-Run | Holdover-To-FreeRun condition | Reverse hardware sync direction; update announce (class 248). Configurable — set LocalMaxHoldoverOffSet ≤ MaxInSpecOffset to skip Out-Of-Spec |
@@ -468,7 +472,7 @@ For the practical application, where the stochastic part and the initial frequen
 The T₀ value is the initial offset at the moment the source is lost, plus any offsets that might occur during transitions to / from holdover.
 The maximum values for ΔT and t are provided by the manufacturer as maximum holdover time and maximum offset drifted during this time. For example there are "8hours holdover module" and "4 hours holdover module", while the ΔT reached during this time is 1500ns. The S value is the slope of the linear part of the model, which is the maximum offset drift rate. The A value is oscillator aging component of the model, which is becoming significant at a longer holdover times
 
-The model above can be sufficient for the practical application assuming the clocks are **fairly well syntonized**, so the initial frequency offset is within the bounds assumed by the manufacturer when specifying the maximum holdover time for the oscillator. This syntonization criteria, when fulfilled, makes the system **holdover capable** at the "source lost" event. Current baseline: HoldoverCapable is equivalent to HoldoverDataValid (all PPS DPLLs in LHAQ). **GA REQUIREMENT**: for general availability, this must be refined to include FFO-based syntonization criteria — verifying that the OCXO frequency offset is within manufacturer-specified bounds for a qualifying period before certifying holdover capability (see §6.3 HoldoverCapable).
+The model above can be sufficient for the practical application assuming the clocks are **fairly well syntonized**, so the initial frequency offset is within the bounds assumed by the manufacturer when specifying the maximum holdover time for the oscillator. This syntonization criteria, when fulfilled, makes the system **holdover capable** at the "source lost" event. Current baseline: HoldoverCapable is equivalent to HoldoverDataValid (the leading DPLL in LHAQ). **GA REQUIREMENT**: for general availability, this must be refined to include FFO-based syntonization criteria — verifying that the leading OCXO frequency offset is within manufacturer-specified bounds for a qualifying period before certifying holdover capability (see §6.3 HoldoverCapable). Downstream DPLL states do not determine holdover capability or drift classification.
 
 #### 6.8.3 Holdover time calculation example
 Assuming we have a "8hours holdover module" with 1500ns maximum offset drifted during this time, and the oscillator aging is 0.3 ppb/day, we can calculate the linear drift component S as follows:
@@ -1210,9 +1214,10 @@ Do **not** cite [ITU-T G.8273.2](#42-normative-references) in §14 traceability 
 
 | Requirement ID | Spec traceability | Requirement text |
 | :---- | :---- | :---- |
-| FUNC-TBC002-R1 | [§6.3](#63-state-transition-conditions), [T3](#64-state-transition-table) | Given a T-BC is in Locked state, when the upstream TR port loses its PTP source (NoValidSourceAvailable), then the T-BC must transition to Holdover-In-Spec, if it is holdover capable |
-| FUNC-TBC002-R2 | [§7.1](#71-wpc-e810-pin-states), [§7.2](#72-gnr-d-e825-pin-states) | Upon entering holdover, the hardware sync direction must reverse (DPLL input disabled, DPLL output enabled) |
+| FUNC-TBC002-R1 | [§6.3](#63-state-transition-conditions), [T3](#64-state-transition-table) | Given a T-BC is in Locked state, when the leading interface loses its upstream PTP source (NoValidSourceAvailable) and the leading DPLL is holdover capable, then the T-BC must transition to Holdover-In-Spec |
+| FUNC-TBC002-R2 | [§7.1](#71-wpc-e810-pin-states), [§7.2](#72-gnr-d-e825-pin-states) | Upon entering holdover, the leading interface's hardware sync direction must reverse (leading DPLL input disabled, leading DPLL output enabled); downstream DPLLs continue to receive PPS from the leading DPLL |
 | FUNC-TBC002-R3 | [§8.3](#83-holdover-in-spec-state-announce-content) | Announce messages must reflect holdover parameters: clockClass 135, gmIdentity = local, timeTraceable = TRUE |
+| FUNC-TBC002-R4 | [§6.3](#63-state-transition-conditions) | In a multi-card T-BC, given the leading interface's DPLL enters holdover after upstream source loss, then that DPLL alone drives composite holdover entry and its drift/offset alone determines the holdover sub-state; downstream DPLLs may continue to report LOCKED because they cannot assess the PPS source's quality |
 
 ### 14.3 State Machine — Holdover In-Spec to Out-Of-Spec
 
@@ -1220,7 +1225,7 @@ Do **not** cite [ITU-T G.8273.2](#42-normative-references) in §14 traceability 
 
 | Requirement ID | Spec traceability | Requirement text |
 | :---- | :---- | :---- |
-| FUNC-TBC003-R1 | [§6.3](#63-state-transition-conditions), [T6](#64-state-transition-table) | Given a T-BC is in Holdover-In-Spec state, when the estimated phase offset exceeds MaxInSpecOffset, then the T-BC must transition to Holdover-Out-Of-Spec |
+| FUNC-TBC003-R1 | [§6.3](#63-state-transition-conditions), [T6](#64-state-transition-table) | Given a T-BC is in Holdover-In-Spec state, when the leading DPLL's estimated phase offset exceeds MaxInSpecOffset, then the T-BC must transition to Holdover-Out-Of-Spec |
 | FUNC-TBC003-R2 | [§8.4](#84-holdover-out-of-spec-state-announce-content) | Announce messages must reflect degraded parameters: clockClass 165, clockAccuracy = Unknown, timeTraceable = FALSE |
 
 ### 14.4 State Machine — Holdover to Free-Run
@@ -1252,6 +1257,7 @@ Do **not** cite [ITU-T G.8273.2](#42-normative-references) in §14 traceability 
 | :---- | :---- | :---- |
 | FUNC-TBC006-R1 | [§6.3](#63-state-transition-conditions), [T4](#64-state-transition-table) | Given a T-BC is in Locked state, when the Locked-To-FreeRun condition is met, then the T-BC must transition to Free-Run (see FUNC-TBC013 for threshold and configurability details) |
 | FUNC-TBC006-R2 | [§12.1](#121-event-types) | A PTP lock state change event must be published upon this transition |
+| FUNC-TBC006-R3 | [§6.3](#63-state-transition-conditions), [T10](#64-state-transition-table) | Given any downstream-card DPLL loses synchronization to PPS from the leading DPLL, then the composite T-BC state must immediately transition to Free-Run from any non-Free-Run state, without entering or remaining in Holdover-In-Spec or Holdover-Out-Of-Spec |
 
 ### 14.7 Multi-NIC — Announcement Coherence
 
@@ -1335,7 +1341,7 @@ Do **not** cite [ITU-T G.8273.2](#42-normative-references) in §14 traceability 
 | FUNC-TBC014-R5 | [§6.8.2.2](#6862-4-hour-holdover-module-or-the-wpc-default-holdover-module) | Given a T-BC with a 4-hour holdover module (WPC default) is HoldoverCapable and enters holdover, then the offset must be estimated as ΔT(t) = T₀ + S·t with S = 104 ps/s |
 | FUNC-TBC014-R6 | [§6.8.2](#682-the-simplified-holdover-model---ffs) | Given a T-BC loses its source and the system is NOT HoldoverCapable, then it must transition to Free-Run |
 | FUNC-TBC014-R7 | [§6.8.4](#684-oscillator-on-time-requirement) | Given the oscillator has not reached sufficient power-on time (10–100 hours), then oscillator holdover performance must NOT be relied upon |
-| FUNC-TBC014-R8 | [§6.3 HoldoverCapable](#63-state-transition-conditions) | Given the current baseline defines HoldoverCapable as equivalent to HoldoverDataValid (all PPS DPLLs in LHAQ), then the system must treat HoldoverDataValid as sufficient for holdover entry. **GA REQUIREMENT**: this must be refined to include FFO-based syntonization criteria before general availability (see §6.3 HoldoverCapable, §6.8.2) |
+| FUNC-TBC014-R8 | [§6.3 HoldoverCapable](#63-state-transition-conditions) | Given the current baseline defines HoldoverCapable as equivalent to HoldoverDataValid (the leading DPLL in LHAQ), then the system must treat HoldoverDataValid as sufficient for holdover entry. **GA REQUIREMENT**: this must be refined to include FFO-based syntonization criteria before general availability (see §6.3 HoldoverCapable, §6.8.2) |
 
 ### 14.15 Process Orchestration — Startup Order and Lifecycle
 
@@ -1403,8 +1409,8 @@ Do **not** cite [ITU-T G.8273.2](#42-normative-references) in §14 traceability 
 | FUNC-TBC019-R2 | [§10.1](#10-clock-components-monitoring) | Given a T-BC has a DPLL, then the DPLL phase offset must be continuously monitored and available as a metric |
 | FUNC-TBC019-R3 | [§10.1](#10-clock-components-monitoring) | Given ts2phc is running, then the ts2phc offset must be continuously monitored and available as a metric |
 | FUNC-TBC019-R4 | [§10.1](#10-clock-components-monitoring) | Given phc2sys is running, then the phc2sys offset (CLOCK_REALTIME vs PHC) must be continuously monitored and available as a metric |
-| FUNC-TBC019-R5 | [§10.2](#10-clock-components-monitoring) | Given a T-BC is in Holdover-In-Spec state, when any estimated DPLL phase offset exceeds `MaxInSpecOffset`, then the system must transition to Holdover-Out-Of-Spec |
-| FUNC-TBC019-R6 | [§10.2](#10-clock-components-monitoring) | Given a T-BC is in any Holdover state, when any estimated phase offset exceeds `LocalMaxHoldoverOffSet`, then the system must transition to Free-Run |
+| FUNC-TBC019-R5 | [§10.2](#10-clock-components-monitoring) | Given a T-BC is in Holdover-In-Spec state, when the leading DPLL's estimated phase offset exceeds `MaxInSpecOffset`, then the system must transition to Holdover-Out-Of-Spec |
+| FUNC-TBC019-R6 | [§10.2](#10-clock-components-monitoring) | Given a T-BC is in any Holdover state, when the leading DPLL's estimated phase offset exceeds `LocalMaxHoldoverOffSet`, then the system must transition to Free-Run |
 | FUNC-TBC019-R7 | [§10.2](#10-clock-components-monitoring) | Given a T-BC has ValidSourceAvailable, when the worst-case offset is below `inSyncConditionThreshold` for `inSyncConditionTimes` consecutive samples, then the InSync condition is met |
 
 ### 14.20 Observability — Metrics Emission
